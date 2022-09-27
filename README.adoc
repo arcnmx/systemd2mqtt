@@ -1,0 +1,8 @@
+= systemd2mqtt
+
+Expose systemd services to MQTT
+
+[source,bash]
+----
+$ cargo run -- --help
+----
