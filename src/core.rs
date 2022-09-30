@@ -13,7 +13,7 @@ use paho_mqtt::{
 };
 use crate::{
 	cli::Args,
-	payload::{UnitStatus, ON, OFF, RESTART},
+	payload::{ServiceStatus, ServiceCommand, UnitStatus, UnitCommand},
 };
 
 pub struct Core<'c> {
@@ -39,7 +39,10 @@ impl<'c> Core<'c> {
 	}
 
 	pub fn mqtt_will(&self) -> Message {
-		Message::new(self.cli.mqtt_pub_topic(), "OFF", QOS)
+		let payload = ServiceStatus {
+			is_active: false,
+		};
+		Message::new(self.cli.mqtt_pub_topic(), payload.encode(), QOS)
 	}
 
 	pub async fn announce(&self) -> Result<()> {
@@ -52,7 +55,10 @@ impl<'c> Core<'c> {
 			futures.push(self.mqtt.publish(self.cli.hass_announce_switch(&self.cli.hass_global_switch())));
 			futures::future::try_join_all(futures).await?;
 
-			self.mqtt.publish(Message::new(self.cli.mqtt_pub_topic(), "ON", QOS)).await?;
+		let payload = ServiceStatus {
+			is_active: true,
+		};
+			self.mqtt.publish(Message::new(self.cli.mqtt_pub_topic(), payload.encode(), QOS)).await?;
 		}
 
 		Ok(())
@@ -108,27 +114,27 @@ impl<'c> Core<'c> {
 		if self.cli.use_mqtt() {
 			self.mqtt.publish(Message::new(
 				self.cli.mqtt_pub_topic_unit(unit_name),
-				serde_json::to_string(&payload)?, QOS,
+				payload.encode(), QOS,
 			)).await?;
 		}
 
 		Ok(())
 	}
 
-	pub async fn handle_activate(&self, manager: &ManagerProxy<'_>, unit: &str, payload: &str) -> Result<()> {
+	pub async fn handle_activate(&self, manager: &ManagerProxy<'_>, unit: &str, payload: &[u8]) -> Result<()> {
 		let mode = "fail".into();
-		match payload {
-			ON => {
+		match serde_json::from_slice::<UnitCommand>(payload) {
+			Ok(UnitCommand::Start) => {
 				manager.start_unit(unit.into(), mode).await?;
 			},
-			OFF => {
+			Ok(UnitCommand::Stop) => {
 				manager.stop_unit(unit.into(), mode).await?;
 			},
-			RESTART => {
+			Ok(UnitCommand::Restart) => {
 				manager.restart_unit(unit.into(), mode).await?;
 			},
-			payload => {
-				log::warn!("unsupported activation mode: '{}'", payload)
+			Err(e) => {
+				log::warn!("unsupported unit command: {:?}", e)
 			}
 		}
 		Ok(())
@@ -140,15 +146,17 @@ impl<'c> Core<'c> {
 			[ "systemd", hostname, .. ] if *hostname != self.cli.hostname() =>
 				(), // not for us, ignore
 			[ _, _, unit, "activate" ] => match self.interesting_units.contains(unit) {
-				true => self.handle_activate(manager, unit, &message.payload_str()).await?,
+				true => self.handle_activate(manager, unit, &message.payload()).await?,
 				false => {
 					log::warn!("attempt to control untracked unit {}", unit);
 				},
 			},
-			[ _, _, "status" ] => match message.payload() {
-				b"OFF" => return Ok(false),
-				b"ON" => (),
-				_ => log::warn!("unsupported systemd2mqtt status '{}'", message.payload_str()),
+			[ _, _, "status" ] => match serde_json::from_slice::<ServiceCommand>(message.payload()) {
+				Ok(ServiceCommand::Set { active }) => match active {
+					true => (), // ignore, already on
+					false => return Ok(false),
+				},
+				Err(e) => log::warn!("unsupported systemd2mqtt command: {:?}", e),
 			},
 			_ => {
 				log::warn!("unrecognized topic {}", message.topic());

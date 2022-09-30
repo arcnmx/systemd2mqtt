@@ -3,12 +3,32 @@ use hass_mqtt_discovery::{
 	entity::{Entity, Switch},
 	entity_category::EntityCategory,
 };
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use crate::cli::Args;
 
-pub const ON: &'static str = "active";
-pub const OFF: &'static str = "inactive";
-pub const RESTART: &'static str = "restart";
+#[derive(Serialize, Debug)]
+pub struct ServiceStatus {
+	pub is_active: bool,
+}
+
+impl ServiceStatus {
+	pub fn encode(&self) -> String {
+		serde_json::to_string(self).unwrap()
+	}
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum ServiceCommand {
+	Set {
+		active: bool,
+	},
+}
+
+impl ServiceCommand {
+	pub fn encode(&self) -> String {
+		serde_json::to_string(self).unwrap()
+	}
+}
 
 #[derive(Serialize, Debug, Default)]
 pub struct UnitStatus {
@@ -18,6 +38,25 @@ pub struct UnitStatus {
 	pub invocation_id: Vec<u8>,
 	pub description: String,
 	pub transient: bool,
+}
+
+impl UnitStatus {
+	pub fn encode(&self) -> String {
+		serde_json::to_string(self).unwrap()
+	}
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum UnitCommand {
+	Start,
+	Stop,
+	Restart,
+}
+
+impl UnitCommand {
+	pub fn encode(&self) -> String {
+		serde_json::to_string(self).unwrap()
+	}
 }
 
 impl Args {
@@ -44,8 +83,17 @@ impl Args {
 				device: Some(self.hass_device()),
 				.. Default::default()
 			},
-			state_topic: Some(self.mqtt_pub_topic().into()),
 			command_topic: Some(self.mqtt_pub_topic().into()),
+			payload_on: Some(ServiceCommand::Set {
+				active: true,
+			}.encode().into()),
+			payload_off: Some(ServiceCommand::Set {
+				active: false,
+			}.encode().into()),
+			state_topic: Some(self.mqtt_pub_topic().into()),
+			state_on: Some("ON".into()),
+			state_off: Some("OFF".into()),
+			value_template: Some("{% if value_json['is_active'] %}ON{% else %}OFF{% endif %}".into()),
 			.. Default::default()
 		}
 	}
@@ -59,15 +107,16 @@ impl Args {
 				device: Some(self.hass_device()),
 				.. Default::default()
 			},
-			payload_off: Some(OFF.into()),
-			payload_on: Some(ON.into()),
-			state_topic: Some(self.mqtt_pub_topic_unit(unit).into()),
-			value_template: Some(format!(
-				"{{% if {} %}}{}{{% else %}}{}{{% endif %}}",
-				"value_json['active_state'] == 'active' or value_json['active_state'] == 'activating' or value_json['active_state'] == 'deactivating'",
-				ON, OFF,
-			).into()),
 			command_topic: Some(self.mqtt_sub_topic_unit(unit).into()),
+			payload_on: Some(UnitCommand::Start.encode().into()),
+			payload_off: Some(UnitCommand::Stop.encode().into()),
+			state_topic: Some(self.mqtt_pub_topic_unit(unit).into()),
+			state_off: Some("OFF".into()),
+			state_on: Some("ON".into()),
+			value_template: Some(format!(
+				"{{% if {} %}}ON{{% else %}}OFF{{% endif %}}",
+				"value_json['active_state'] == 'active' or value_json['active_state'] == 'activating' or value_json['active_state'] == 'deactivating'",
+			).into()),
 			.. Default::default()
 		}
 	}
