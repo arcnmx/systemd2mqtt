@@ -132,7 +132,7 @@ impl Args {
 	pub fn hass_global_switch(&self) -> Switch {
 		Switch {
 			unique_id: self.hass_device_id().into(),
-			entity_category: Some(EntityCategory::System),
+			entity_category: Some(EntityCategory::None),
 			name: Some(env!("CARGO_PKG_NAME").into()),
 			device: Some(self.hass_device()),
 			state_topic: Some(self.mqtt_pub_topic().into()),
