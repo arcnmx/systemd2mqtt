@@ -145,8 +145,11 @@ impl<'c> Core<'c> {
 					log::warn!("attempt to control untracked unit {}", unit);
 				},
 			},
-			[ _, _, "status" ] if message.payload() == b"OFF" =>
-				return Ok(false),
+			[ _, _, "status" ] => match message.payload() {
+				b"OFF" => return Ok(false),
+				b"ON" => (),
+				_ => log::warn!("unsupported systemd2mqtt status '{}'", message.payload_str()),
+			},
 			_ => {
 				log::warn!("unrecognized topic {}", message.topic());
 			},
