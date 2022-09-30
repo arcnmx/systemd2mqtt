@@ -2,7 +2,6 @@ use std::collections::HashSet;
 use std::borrow::Cow;
 use clap::Parser;
 use paho_mqtt as mqtt;
-use hass_mqtt_discovery::entity_category::EntityCategory;
 
 #[derive(Parser, Debug)]
 #[clap(version)]

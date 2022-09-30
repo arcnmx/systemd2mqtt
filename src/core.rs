@@ -13,7 +13,7 @@ use paho_mqtt::{
 };
 use crate::{
 	cli::Args,
-	payload::{UnitStatus, Switch, ON, OFF, RESTART},
+	payload::{UnitStatus, ON, OFF, RESTART},
 };
 
 pub struct Core<'c> {
@@ -46,10 +46,10 @@ impl<'c> Core<'c> {
 		if self.cli.use_mqtt() {
 			let mut futures = Vec::new();
 			for unit in self.cli.interesting_units().iter() {
-				let switch = Switch::new(self.cli, unit);
-				futures.push(self.mqtt.publish(switch.announce(&self.cli)));
+				let switch = self.cli.hass_unit_switch(unit);
+				futures.push(self.mqtt.publish(self.cli.hass_announce_switch(&switch)));
 			}
-			futures.push(self.mqtt.publish(self.cli.hass_global_switch().announce(&self.cli)));
+			futures.push(self.mqtt.publish(self.cli.hass_announce_switch(&self.cli.hass_global_switch())));
 			futures::future::try_join_all(futures).await?;
 
 			self.mqtt.publish(Message::new(self.cli.mqtt_pub_topic(), "ON", QOS)).await?;
