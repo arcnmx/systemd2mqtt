@@ -68,17 +68,17 @@
     "nixpkgs-paho": {
       "flake": false,
       "locked": {
-        "lastModified": 1648839970,
-        "narHash": "sha256-0o/3IMYkvgslvRsU2Er3cgJDirG4LD5EUxtNmjYWSoc=",
+        "lastModified": 1664876486,
+        "narHash": "sha256-c1Vmz+7uu2sWvo4/T/bmt73gFbLxcwnw84bMYsMbFO8=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "bcdaa300fd314e05af4b2f74f34938d60e955ca7",
+        "rev": "6925ec14c9d3e9bce426a74a132f1ed1211cbf9a",
         "type": "github"
       },
       "original": {
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "bcdaa300fd314e05af4b2f74f34938d60e955ca7",
+        "rev": "6925ec14c9d3e9bce426a74a132f1ed1211cbf9a",
         "type": "github"
       }
     },

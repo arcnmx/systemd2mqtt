@@ -4,8 +4,8 @@
     flakelib.url = "github:flakelib/fl";
     nixpkgs = { };
     nixpkgs-paho = {
-      # https://github.com/NixOS/nixpkgs/pull/166862
-      url = "github:NixOS/nixpkgs/bcdaa300fd314e05af4b2f74f34938d60e955ca7";
+      # https://github.com/NixOS/nixpkgs/pull/194375
+      url = "github:NixOS/nixpkgs/6925ec14c9d3e9bce426a74a132f1ed1211cbf9a";
       flake = false;
     };
   };
