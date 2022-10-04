@@ -40,6 +40,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-ctrlc"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "907279f6e91a51c8ec7cac24711e8308f21da7c10c7700ca2f7e125694ed2df1"
+dependencies = [
+ "ctrlc",
+ "futures-core",
+]
+
+[[package]]
 name = "async-executor"
 version = "1.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1016,6 +1026,7 @@ name = "systemd2mqtt"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-ctrlc",
  "clap",
  "ctrlc",
  "env_logger",

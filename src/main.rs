@@ -1,4 +1,4 @@
-use futures::{StreamExt, FutureExt};
+use futures::{StreamExt, FutureExt, select, pin_mut};
 use anyhow::{Result, format_err};
 use clap::Parser;
 
@@ -34,12 +34,18 @@ async fn main() -> Result<()> {
 		futures::future::try_join_all(futures).await?;
 		Ok::<(), anyhow::Error>(())
 	}.fuse();
-	futures::pin_mut!(initial_setup);
+	pin_mut!(initial_setup);
+
+	let ctrlc = StreamExt::fuse(async_ctrlc::CtrlC::new().expect("ctrl+c"));
+	pin_mut!(ctrlc);
 
 	loop {
-		futures::select! {
+		select! {
 			res = initial_setup => if let Err(e) = res {
 				log::error!("Failed to perform initial setup: {:?}", e);
+			},
+			_ = ctrlc.next() => {
+				break
 			},
 			job_new = new_jobs.next() => {
 				let job_new = job_new
