@@ -23,7 +23,7 @@ in rustPlatform.buildRustPackage {
   version = cargoToml.package.version;
 
   src = _arg'systemd2mqtt;
-  cargoSha256 = "sha256-UQ5V9No7iHoKYCzQPC8cKlANChq6YxcMmrnA6HSHHSo=";
+  cargoSha256 = "sha256-k2xa+2O3hHmBBJqPrfd9w4btPh/4LVRHCJNCmiT4Gw8=";
   buildInputs = [
     paho-mqtt-c
     openssl

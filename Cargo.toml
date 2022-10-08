@@ -22,7 +22,7 @@ log = "^0.4.1"
 hostname = "^0.3"
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-hass-mqtt-discovery = { version = "^0.1", git = "https://github.com/arcnmx/hass-rs" }
+hass-mqtt-discovery = { version = "^0.1", git = "https://github.com/YoloDev/hass-rs" }
 ctrlc = { version = "^3.1.9", features = ["termination"] }
 async-ctrlc = { version = "^1.2.0", features = ["stream"] }
 paho-mqtt = { version = "^0.11.1", default-features = false, features = ["ssl"] }
