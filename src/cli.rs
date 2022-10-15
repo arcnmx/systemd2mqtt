@@ -4,26 +4,26 @@ use clap::Parser;
 use paho_mqtt as mqtt;
 
 #[derive(Parser, Debug)]
-#[clap(version)]
+#[command(version)]
 pub struct Args {
 	/// such as `tcp://localhost:1883`
-	#[clap(short = 'M', long)]
+	#[arg(short = 'M', long)]
 	pub mqtt_url: Option<String>,
 	/// units to pay attention to
-	#[clap(short, long = "unit")]
+	#[arg(short, long = "unit")]
 	pub units: Vec<String>,
 	/// identify this host
-	#[clap(short, long)]
+	#[arg(short = 'H', long)]
 	pub hostname: Option<String>,
 	/// mqtt client ID
-	#[clap(short, long)]
+	#[arg(short, long)]
 	pub client_id: Option<String>,
 	/// home-assistant discovery prefix
-	#[clap(short, long, default_value("homeassistant"))]
+	#[arg(short, long, default_value("homeassistant"))]
 	pub discovery_prefix: String,
-	#[clap(short = 'U', long, env("MQTT_USERNAME"))]
+	#[arg(short = 'U', long, env("MQTT_USERNAME"))]
 	pub mqtt_username: Option<String>,
-	#[clap(short = 'P', long, env("MQTT_PASSWORD"))]
+	#[arg(short = 'P', long, env("MQTT_PASSWORD"))]
 	pub mqtt_password: Option<String>,
 }
 
