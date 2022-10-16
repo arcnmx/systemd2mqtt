@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::HashSet;
 use std::time::Duration;
 use anyhow::Result;
@@ -13,7 +14,7 @@ use paho_mqtt::{
 };
 use crate::{
 	cli::Args,
-	payload::{ServiceStatus, ServiceCommand, UnitStatus, UnitCommand},
+	payload::{ServiceStatus, UnitStatus, UnitCommand},
 };
 
 pub struct Core<'c> {
@@ -41,24 +42,28 @@ impl<'c> Core<'c> {
 	pub fn mqtt_will(&self) -> Message {
 		let payload = ServiceStatus {
 			is_active: false,
+			units: Default::default(),
 		};
-		Message::new(self.cli.mqtt_pub_topic(), payload.encode(), QOS)
+		Message::new_retained(self.cli.mqtt_pub_topic(), payload.encode(), QOS)
 	}
 
 	pub async fn announce(&self) -> Result<()> {
 		if self.cli.use_mqtt() {
 			let mut futures = Vec::new();
-			for unit in self.cli.interesting_units().iter() {
+			for unit in self.cli.interesting_units() {
 				let switch = self.cli.hass_unit_switch(unit);
 				futures.push(self.mqtt.publish(self.cli.hass_announce_switch(&switch)));
 			}
 			futures.push(self.mqtt.publish(self.cli.hass_announce_switch(&self.cli.hass_global_switch())));
 			futures::future::try_join_all(futures).await?;
 
-		let payload = ServiceStatus {
-			is_active: true,
-		};
-			self.mqtt.publish(Message::new(self.cli.mqtt_pub_topic(), payload.encode(), QOS)).await?;
+			let payload = ServiceStatus {
+				is_active: true,
+				units: self.cli.interesting_units().iter()
+					.map(|&k| Cow::Borrowed(k))
+					.collect(),
+			};
+			self.mqtt.publish(Message::new_retained(self.cli.mqtt_pub_topic(), payload.encode(), QOS)).await?;
 		}
 
 		Ok(())
@@ -72,7 +77,6 @@ impl<'c> Core<'c> {
 			opts.will_message(self.mqtt_will());
 			self.mqtt.connect(opts.finalize()).await?;
 			self.mqtt.subscribe(format!("{}/+/activate", self.cli.topic_root()), QOS).await?;
-			self.mqtt.subscribe(self.cli.mqtt_pub_topic(), QOS).await?;
 		}
 
 		Ok(())
@@ -112,7 +116,7 @@ impl<'c> Core<'c> {
 		};
 
 		if self.cli.use_mqtt() {
-			self.mqtt.publish(Message::new(
+			self.mqtt.publish(Message::new_retained(
 				self.cli.mqtt_pub_topic_unit(unit_name),
 				payload.encode(), QOS,
 			)).await?;
@@ -150,13 +154,6 @@ impl<'c> Core<'c> {
 				false => {
 					log::warn!("attempt to control untracked unit {}", unit);
 				},
-			},
-			[ _, _, "status" ] => match serde_json::from_slice::<ServiceCommand>(message.payload()) {
-				Ok(ServiceCommand::Set { active }) => match active {
-					true => (), // ignore, already on
-					false => return Ok(false),
-				},
-				Err(e) => log::warn!("unsupported systemd2mqtt command: {:?}", e),
 			},
 			_ => {
 				log::warn!("unrecognized topic {}", message.topic());

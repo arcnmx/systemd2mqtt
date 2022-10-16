@@ -1,4 +1,6 @@
+use std::borrow::Cow;
 use hass_mqtt_discovery::{
+	availability::Availability,
 	device::Device,
 	entity::{Entity, Switch},
 	entity_category::EntityCategory,
@@ -7,24 +9,13 @@ use serde::{Serialize, Deserialize};
 use crate::cli::Args;
 
 #[derive(Serialize, Debug)]
-pub struct ServiceStatus {
+pub struct ServiceStatus<'a> {
 	pub is_active: bool,
+	#[serde(borrow)]
+	pub units: Vec<Cow<'a, str>>,
 }
 
-impl ServiceStatus {
-	pub fn encode(&self) -> String {
-		serde_json::to_string(self).unwrap()
-	}
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub enum ServiceCommand {
-	Set {
-		active: bool,
-	},
-}
-
-impl ServiceCommand {
+impl ServiceStatus<'_> {
 	pub fn encode(&self) -> String {
 		serde_json::to_string(self).unwrap()
 	}
@@ -75,21 +66,35 @@ impl Args {
 		}
 	}
 
+	pub fn hass_availability(&self) -> Availability {
+		Availability {
+			topic: self.mqtt_pub_topic().into(),
+			payload_available: Some("ON".into()),
+			payload_not_available: Some("OFF".into()),
+			value_template: Some("{% if value_json['is_active'] %}ON{% else %}OFF{% endif %}".into()),
+		}
+	}
+
+	pub fn hass_availability_unit(&self, unit: &str) -> Availability {
+		Availability {
+			topic: self.mqtt_pub_topic().into(),
+			payload_available: Some("ON".into()),
+			payload_not_available: Some("OFF".into()),
+			value_template: Some(
+				format!("{{% if value_json['is_active'] and '{}' in value_json['units'] %}}ON{{% else %}}OFF{{% endif %}}", unit).into()
+			),
+		}
+	}
+
 	pub fn hass_global_switch(&self) -> Switch {
 		Switch {
 			entity: Entity {
 				unique_id: Some(self.hass_device_id().into()),
 				name: Some(env!("CARGO_PKG_NAME").into()),
 				device: Some(self.hass_device()),
+				availability: vec![self.hass_availability()].into(),
 				.. Default::default()
 			},
-			command_topic: Some(self.mqtt_pub_topic().into()),
-			payload_on: Some(ServiceCommand::Set {
-				active: true,
-			}.encode().into()),
-			payload_off: Some(ServiceCommand::Set {
-				active: false,
-			}.encode().into()),
 			state_topic: Some(self.mqtt_pub_topic().into()),
 			state_on: Some("ON".into()),
 			state_off: Some("OFF".into()),
@@ -105,6 +110,7 @@ impl Args {
 				entity_category: self.hass_entity_category(unit),
 				name: Some(self.hass_entity_name(unit).into()),
 				device: Some(self.hass_device()),
+				availability: vec![self.hass_availability_unit(unit)].into(),
 				.. Default::default()
 			},
 			command_topic: Some(self.mqtt_sub_topic_unit(unit).into()),
@@ -123,7 +129,7 @@ impl Args {
 
 	pub fn hass_announce_switch(&self, switch: &Switch) -> paho_mqtt::Message {
 		let payload = serde_json::to_string(switch).unwrap();
-		paho_mqtt::Message::new(
+		paho_mqtt::Message::new_retained(
 			format!("{}/switch/{}/config", self.discovery_prefix, switch.entity.unique_id.as_ref().unwrap()),
 			payload,
 			paho_mqtt::QOS_0,
