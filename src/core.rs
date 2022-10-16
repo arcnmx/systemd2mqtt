@@ -45,7 +45,7 @@ impl<'c> Core<'c> {
 			is_active: false,
 			units: Default::default(),
 		};
-		Message::new_retained(self.cli.mqtt_pub_topic(), payload.encode(), QOS)
+		Message::new_retained(self.cli.mqtt_pub_topic(), payload.encode(), mqtt::QOS_1)
 	}
 
 	pub async fn announce(&self) -> Result<()> {
@@ -58,7 +58,7 @@ impl<'c> Core<'c> {
 					.map(|&k| Cow::Borrowed(k))
 					.collect(),
 			};
-			self.mqtt.publish(Message::new_retained(self.cli.mqtt_pub_topic(), payload.encode(), QOS)).await?;
+			self.mqtt.publish(Message::new_retained(self.cli.mqtt_pub_topic(), payload.encode(), mqtt::QOS_1)).await?;
 
 			for unit in self.cli.interesting_units() {
 				let switch = self.cli.hass_unit_switch(unit);
