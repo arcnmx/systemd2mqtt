@@ -18,6 +18,9 @@ pub struct Args {
 	/// mqtt client ID
 	#[arg(short, long)]
 	pub client_id: Option<String>,
+	/// remove discoverable entities from home-assistant on exit
+	#[arg(long)]
+	pub clean_up: bool,
 	/// home-assistant discovery prefix
 	#[arg(short, long, default_value("homeassistant"))]
 	pub discovery_prefix: String,

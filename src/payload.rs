@@ -129,11 +129,7 @@ impl Args {
 
 	pub fn hass_announce_switch(&self, switch: &Switch) -> paho_mqtt::Message {
 		let payload = serde_json::to_string(switch).unwrap();
-		paho_mqtt::Message::new_retained(
-			format!("{}/switch/{}/config", self.discovery_prefix, switch.entity.unique_id.as_ref().unwrap()),
-			payload,
-			paho_mqtt::QOS_0,
-		)
+		paho_mqtt::Message::new_retained(self.hass_config_topic(switch.entity.unique_id.as_ref().unwrap()), payload, paho_mqtt::QOS_0)
 	}
 
 
@@ -159,5 +155,13 @@ impl Args {
 
 	pub fn hass_entity_name(&self, unit: &str) -> String {
 		Self::unit_short_name(unit).into()
+	}
+
+	pub fn hass_config_topic(&self, unique_id: &str) -> String {
+		format!("{}/switch/{}/config", self.discovery_prefix, unique_id)
+	}
+
+	pub fn hass_config_topic_unit(&self, unit: &str) -> String {
+		self.hass_config_topic(&self.hass_unique_id(unit))
 	}
 }

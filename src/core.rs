@@ -75,6 +75,11 @@ impl<'c> Core<'c> {
 		if self.cli.use_mqtt() {
 			let mut opts = self.cli.mqtt_connect();
 			opts.will_message(self.mqtt_will());
+			if self.cli.clean_up {
+				for unit in self.cli.interesting_units() {
+					opts.will_message(Message::new(self.cli.hass_config_topic_unit(unit), "{}", QOS));
+				}
+			}
 			self.mqtt.connect(opts.finalize()).await?;
 			self.mqtt.subscribe(format!("{}/+/activate", self.cli.topic_root()), QOS).await?;
 		}
