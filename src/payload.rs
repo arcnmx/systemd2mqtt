@@ -84,7 +84,7 @@ impl Args {
 			topic: self.mqtt_pub_topic().into(),
 			payload_available: Some("ON".into()),
 			payload_not_available: Some("OFF".into()),
-			value_template: Some("{% if value_json['is_active'] %}ON{% else %}OFF{% endif %}".into()),
+			value_template: Some("{% if value_json.is_active %}ON{% else %}OFF{% endif %}".into()),
 		}
 	}
 
@@ -94,7 +94,7 @@ impl Args {
 			payload_available: Some("ON".into()),
 			payload_not_available: Some("OFF".into()),
 			value_template: Some(
-				format!("{{% if value_json['is_active'] and '{}' in value_json['units'] %}}ON{{% else %}}OFF{{% endif %}}", unit).into()
+				format!("{{% if value_json.is_active and '{}' in value_json.units %}}ON{{% else %}}OFF{{% endif %}}", unit).into()
 			),
 		}
 	}
@@ -119,7 +119,7 @@ impl Args {
 			state_topic: Some(self.mqtt_pub_topic().into()),
 			state_on: Some("ON".into()),
 			state_off: Some("OFF".into()),
-			value_template: Some("{% if value_json['is_active'] %}ON{% else %}OFF{% endif %}".into()),
+			value_template: Some("{% if value_json.is_active %}ON{% else %}OFF{% endif %}".into()),
 			.. Default::default()
 		}
 	}
@@ -143,7 +143,7 @@ impl Args {
 			state_on: Some("ON".into()),
 			value_template: Some(format!(
 				"{{% if {} %}}ON{{% else %}}OFF{{% endif %}}",
-				"value_json['active_state'] == 'active' or value_json['active_state'] == 'activating' or value_json['active_state'] == 'deactivating'",
+				"value_json.active_state in ['active', 'activating', 'deactivating']",
 			).into()),
 			.. Default::default()
 		}
