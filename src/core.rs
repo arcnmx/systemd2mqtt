@@ -87,26 +87,29 @@ impl<'c> Core<'c> {
 	}
 
 	pub async fn disconnect(&self) -> Result<()> {
-		if self.cli.clean_up {
-			let mut futures = Vec::new();
-			futures.push(self.mqtt.publish(
-				Message::new_retained(self.cli.hass_config_topic(&self.cli.hass_device_id()), "{}", QOS)
-			));
-			for unit in self.cli.interesting_units() {
+		if self.cli.use_mqtt() {
+			if self.cli.clean_up {
+				let mut futures = Vec::new();
 				futures.push(self.mqtt.publish(
-					Message::new_retained(self.cli.hass_config_topic_unit(unit), "{}", QOS)
+					Message::new_retained(self.cli.hass_config_topic(&self.cli.hass_device_id()), "{}", QOS)
 				));
+				for unit in self.cli.interesting_units() {
+					futures.push(self.mqtt.publish(
+						Message::new_retained(self.cli.hass_config_topic_unit(unit), "{}", QOS)
+					));
+				}
+				if let Err(e) = futures::future::try_join_all(futures).await {
+					log::warn!("Failed to clean up after ourselves: {:?}", e);
+				}
 			}
-			if let Err(e) = futures::future::try_join_all(futures).await {
-				log::warn!("Failed to clean up after ourselves: {:?}", e);
-			}
+
+			let opts = mqtt::DisconnectOptionsBuilder::new()
+				.timeout(Duration::from_secs(5))
+				.reason_code(mqtt::ReasonCode::ServerShuttingDown)
+				.publish_will_message()
+				.finalize();
+			self.mqtt.disconnect(Some(opts)).await?;
 		}
-		let opts = mqtt::DisconnectOptionsBuilder::new()
-			.timeout(Duration::from_secs(5))
-			.reason_code(mqtt::ReasonCode::ServerShuttingDown)
-			.publish_will_message()
-			.finalize();
-		self.mqtt.disconnect(Some(opts)).await?;
 
 		Ok(())
 	}
