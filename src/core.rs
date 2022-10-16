@@ -62,10 +62,10 @@ impl<'c> Core<'c> {
 
 			for unit in self.cli.interesting_units() {
 				let switch = self.cli.hass_unit_switch(unit);
-				futures.push(self.mqtt.publish(self.cli.hass_announce_entity(&switch, &switch.entity)));
+				futures.push(self.mqtt.publish(self.cli.hass_announce_entity(true, &switch, &switch.entity)));
 			}
 			let global = self.cli.hass_global_state();
-			futures.push(self.mqtt.publish(self.cli.hass_announce_entity(&global, &global.entity)));
+			futures.push(self.mqtt.publish(self.cli.hass_announce_entity(true, &global, &global.entity)));
 
 			futures::future::try_join_all(futures).await?;
 		}
@@ -89,8 +89,8 @@ impl<'c> Core<'c> {
 
 	pub async fn disconnect(&self) -> Result<()> {
 		if self.cli.use_mqtt() {
+			let mut futures = Vec::new();
 			if self.cli.clean_up {
-				let mut futures = Vec::new();
 				futures.push(self.mqtt.publish(
 					Message::new_retained(self.cli.hass_config_topic(&self.cli.hass_device_id()), "{}", QOS)
 				));
@@ -99,9 +99,18 @@ impl<'c> Core<'c> {
 						Message::new_retained(self.cli.hass_config_topic_unit(unit), "{}", QOS)
 					));
 				}
-				if let Err(e) = futures::future::try_join_all(futures).await {
-					warn!("Failed to clean up after ourselves: {:?}", e);
+			} else {
+				// unset retain flag on entity configs
+				for unit in self.cli.interesting_units() {
+					let switch = self.cli.hass_unit_switch(unit);
+					futures.push(self.mqtt.publish(self.cli.hass_announce_entity(false, &switch, &switch.entity)));
 				}
+				let global = self.cli.hass_global_state();
+				futures.push(self.mqtt.publish(self.cli.hass_announce_entity(false, &global, &global.entity)));
+			}
+
+			if let Err(e) = futures::future::try_join_all(futures).await {
+				warn!("Failed to clean up after ourselves: {:?}", e);
 			}
 
 			let opts = mqtt::DisconnectOptionsBuilder::new()

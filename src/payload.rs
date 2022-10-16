@@ -149,9 +149,10 @@ impl Args {
 		}
 	}
 
-	pub fn hass_announce_entity<E: Serialize>(&self, config: &E, entity: &Entity) -> paho_mqtt::Message {
+	pub fn hass_announce_entity<E: Serialize>(&self, retain: bool, config: &E, entity: &Entity) -> paho_mqtt::Message {
 		let payload = serde_json::to_string(config).unwrap();
-		paho_mqtt::Message::new_retained(self.hass_config_topic(entity.unique_id.as_ref().unwrap()), payload, paho_mqtt::QOS_0)
+		let new = if retain { paho_mqtt::Message::new_retained } else { paho_mqtt::Message::new };
+		new(self.hass_config_topic(entity.unique_id.as_ref().unwrap()), payload, paho_mqtt::QOS_0)
 	}
 
 
