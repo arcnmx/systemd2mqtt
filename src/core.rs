@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::collections::HashSet;
 use std::time::Duration;
 use anyhow::Result;
+use log::warn;
 use zbus_systemd::{
 	self as systemd,
 	zbus,
@@ -99,7 +100,7 @@ impl<'c> Core<'c> {
 					));
 				}
 				if let Err(e) = futures::future::try_join_all(futures).await {
-					log::warn!("Failed to clean up after ourselves: {:?}", e);
+					warn!("Failed to clean up after ourselves: {:?}", e);
 				}
 			}
 
@@ -159,7 +160,7 @@ impl<'c> Core<'c> {
 				manager.restart_unit(unit.into(), mode).await?;
 			},
 			Err(e) => {
-				log::warn!("unsupported unit command: {:?}", e)
+				warn!("unsupported unit command: {:?}", e)
 			}
 		}
 		Ok(())
@@ -173,7 +174,7 @@ impl<'c> Core<'c> {
 			[ _, _, unit, "activate" ] => match self.interesting_units.contains(unit) {
 				true => self.handle_activate(manager, unit, &message.payload()).await?,
 				false => {
-					log::warn!("attempt to control untracked unit {}", unit);
+					warn!("attempt to control untracked unit {}", unit);
 				},
 			},
 			[ _, _, "control" ] => match serde_json::from_slice::<ServiceCommand>(message.payload()) {
@@ -181,10 +182,10 @@ impl<'c> Core<'c> {
 					true => (), // ignore, already on
 					false => return Ok(false),
 				},
-				Err(e) => log::warn!("unsupported systemd2mqtt command: {:?}", e),
+				Err(e) => warn!("unsupported systemd2mqtt command: {:?}", e),
 			},
 			_ => {
-				log::warn!("unrecognized topic {}", message.topic());
+				warn!("unrecognized topic {}", message.topic());
 			},
 		}
 		Ok(true)
