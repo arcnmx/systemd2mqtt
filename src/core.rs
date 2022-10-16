@@ -52,9 +52,10 @@ impl<'c> Core<'c> {
 			let mut futures = Vec::new();
 			for unit in self.cli.interesting_units() {
 				let switch = self.cli.hass_unit_switch(unit);
-				futures.push(self.mqtt.publish(self.cli.hass_announce_switch(&switch)));
+				futures.push(self.mqtt.publish(self.cli.hass_announce_entity(&switch, &switch.entity)));
 			}
-			futures.push(self.mqtt.publish(self.cli.hass_announce_switch(&self.cli.hass_global_switch())));
+			let global = self.cli.hass_global_state();
+			futures.push(self.mqtt.publish(self.cli.hass_announce_entity(&global, &global.entity)));
 			futures::future::try_join_all(futures).await?;
 
 			let payload = ServiceStatus {

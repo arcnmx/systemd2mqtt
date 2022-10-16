@@ -86,7 +86,7 @@ impl Args {
 		}
 	}
 
-	pub fn hass_global_switch(&self) -> Switch {
+	pub fn hass_global_state(&self) -> Switch {
 		Switch {
 			entity: Entity {
 				unique_id: Some(self.hass_device_id().into()),
@@ -95,6 +95,7 @@ impl Args {
 				availability: vec![self.hass_availability()].into(),
 				.. Default::default()
 			},
+			command_topic: Some(self.mqtt_sub_topic().into()),
 			state_topic: Some(self.mqtt_pub_topic().into()),
 			state_on: Some("ON".into()),
 			state_off: Some("OFF".into()),
@@ -127,9 +128,9 @@ impl Args {
 		}
 	}
 
-	pub fn hass_announce_switch(&self, switch: &Switch) -> paho_mqtt::Message {
-		let payload = serde_json::to_string(switch).unwrap();
-		paho_mqtt::Message::new_retained(self.hass_config_topic(switch.entity.unique_id.as_ref().unwrap()), payload, paho_mqtt::QOS_0)
+	pub fn hass_announce_entity<E: Serialize>(&self, config: &E, entity: &Entity) -> paho_mqtt::Message {
+		let payload = serde_json::to_string(config).unwrap();
+		paho_mqtt::Message::new_retained(self.hass_config_topic(entity.unique_id.as_ref().unwrap()), payload, paho_mqtt::QOS_0)
 	}
 
 

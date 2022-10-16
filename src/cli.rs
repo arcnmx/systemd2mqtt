@@ -81,6 +81,10 @@ impl Args {
 		format!("{}/status", self.topic_root())
 	}
 
+	pub fn mqtt_sub_topic(&self) -> String {
+		format!("{}/control", self.topic_root())
+	}
+
 	pub fn unit_short_name(unit: &str) -> &str {
 		unit.split('.').next().unwrap()
 	}
