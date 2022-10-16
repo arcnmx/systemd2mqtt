@@ -103,6 +103,7 @@ impl Args {
 		Switch {
 			entity: Entity {
 				unique_id: Some(self.hass_device_id().into()),
+				object_id: Some(self.hass_device_id().into()),
 				name: Some(env!("CARGO_PKG_NAME").into()),
 				device: Some(self.hass_device()),
 				availability: vec![self.hass_availability()].into(),
@@ -127,6 +128,7 @@ impl Args {
 		Switch {
 			entity: Entity {
 				unique_id: Some(self.hass_unique_id(unit).into()),
+				object_id: Some(self.hass_unique_id(unit).into()),
 				entity_category: self.hass_entity_category(unit),
 				name: Some(self.hass_entity_name(unit).into()),
 				device: Some(self.hass_device()),
@@ -154,11 +156,11 @@ impl Args {
 
 
 	pub fn hass_device_id(&self) -> String {
-		format!("{}-{}", env!("CARGO_PKG_NAME"), self.hostname())
+		format!("{}_{}", env!("CARGO_PKG_NAME"), self.hostname())
 	}
 
 	pub fn hass_device_identifiers(&self) -> impl IntoIterator<Item=String> {
-		vec!["name".into(), self.hass_device_id()]
+		vec!["name".into(), format!("{}-{}", env!("CARGO_PKG_NAME"), self.hostname())]
 	}
 
 	pub fn hass_entity_category(&self, unit: &str) -> EntityCategory {
@@ -170,7 +172,7 @@ impl Args {
 	}
 
 	pub fn hass_unique_id(&self, unit: &str) -> String {
-		format!("{}-{}", self.hass_device_id(), Self::unit_short_name(unit))
+		format!("{}_{}", self.hostname(), Self::unit_short_name(unit))
 	}
 
 	pub fn hass_entity_name(&self, unit: &str) -> String {
