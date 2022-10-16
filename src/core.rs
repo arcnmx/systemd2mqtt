@@ -14,7 +14,7 @@ use paho_mqtt::{
 };
 use crate::{
 	cli::Args,
-	payload::{ServiceStatus, UnitStatus, UnitCommand},
+	payload::{ServiceStatus, ServiceCommand, UnitStatus, UnitCommand},
 };
 
 pub struct Core<'c> {
@@ -83,6 +83,7 @@ impl<'c> Core<'c> {
 			}
 			self.mqtt.connect(opts.finalize()).await?;
 			self.mqtt.subscribe(format!("{}/+/activate", self.cli.topic_root()), QOS).await?;
+			self.mqtt.subscribe(self.cli.mqtt_sub_topic(), QOS).await?;
 		}
 
 		Ok(())
@@ -160,6 +161,13 @@ impl<'c> Core<'c> {
 				false => {
 					log::warn!("attempt to control untracked unit {}", unit);
 				},
+			},
+			[ _, _, "control" ] => match serde_json::from_slice::<ServiceCommand>(message.payload()) {
+				Ok(ServiceCommand::Set { active }) => match active {
+					true => (), // ignore, already on
+					false => return Ok(false),
+				},
+				Err(e) => log::warn!("unsupported systemd2mqtt command: {:?}", e),
 			},
 			_ => {
 				log::warn!("unrecognized topic {}", message.topic());

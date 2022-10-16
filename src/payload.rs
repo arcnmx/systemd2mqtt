@@ -21,6 +21,19 @@ impl ServiceStatus<'_> {
 	}
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub enum ServiceCommand {
+	Set {
+		active: bool,
+	},
+}
+
+impl ServiceCommand {
+	pub fn encode(&self) -> String {
+		serde_json::to_string(self).unwrap()
+	}
+}
+
 #[derive(Serialize, Debug, Default)]
 pub struct UnitStatus {
 	pub load_state: String,
@@ -96,6 +109,12 @@ impl Args {
 				.. Default::default()
 			},
 			command_topic: Some(self.mqtt_sub_topic().into()),
+			payload_on: Some(ServiceCommand::Set {
+				active: true,
+			}.encode().into()),
+			payload_off: Some(ServiceCommand::Set {
+				active: false,
+			}.encode().into()),
 			state_topic: Some(self.mqtt_pub_topic().into()),
 			state_on: Some("ON".into()),
 			state_off: Some("OFF".into()),
