@@ -22,7 +22,7 @@ in {
     };
     cache.cachix.arc.enable = true;
     channels = {
-      nixpkgs = mkIf (env.platform != "impure") "22.05";
+      nixpkgs = mkIf (env.platform != "impure") "22.11";
       rust = "master";
     };
     environment = {
