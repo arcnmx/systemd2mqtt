@@ -4,7 +4,6 @@ use std::time::Duration;
 use anyhow::Result;
 use log::warn;
 use zbus_systemd::{
-	self as systemd,
 	zbus,
 	systemd1::{ManagerProxy, UnitProxy},
 };
@@ -28,7 +27,7 @@ pub struct Core<'c> {
 impl<'c> Core<'c> {
 	pub async fn new(cli: &'c Args) -> Result<Core<'c>> {
 		Ok(Core {
-			sys: systemd::connect_system_dbus().await?,
+			sys: zbus::Connection::system().await?,
 			mqtt: mqtt::AsyncClient::new(cli.mqtt_create().finalize())?,
 			interesting_units: cli.interesting_units(),
 			cli,

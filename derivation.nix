@@ -6,7 +6,7 @@
 , lib
 , cargoLock ? {
   lockFile = ./Cargo.lock;
-  outputHashes."hass-mqtt-discovery-0.1.0" = "sha256-h9q1yH6pgERAsMzP/Ha0nQsCjKyHnI+Zox8P85tl1Fs=";
+  outputHashes."hass-mqtt-discovery-0.1.0" = "sha256-qpJG4VhnCiy1EBYEG3h6y1MCmzihS5Puh9ooVMEF4Lk=";
 }
 , _arg'systemd2mqtt ? nix-gitignore.gitignoreSourcePure [ ./.gitignore ''
   /.github

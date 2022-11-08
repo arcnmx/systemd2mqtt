@@ -109,7 +109,7 @@ impl Args {
 				availability: vec![self.hass_availability()].into(),
 				.. Default::default()
 			},
-			command_topic: Some(self.mqtt_sub_topic().into()),
+			command_topic: self.mqtt_sub_topic().into(),
 			payload_on: Some(ServiceCommand::Set {
 				active: true,
 			}.encode().into()),
@@ -120,7 +120,9 @@ impl Args {
 			state_on: Some("ON".into()),
 			state_off: Some("OFF".into()),
 			value_template: Some("{% if value_json.is_active %}ON{% else %}OFF{% endif %}".into()),
-			.. Default::default()
+			device_class: None,
+			optimistic: None,
+			retain: None,
 		}
 	}
 
@@ -135,7 +137,7 @@ impl Args {
 				availability: vec![self.hass_availability_unit(unit)].into(),
 				.. Default::default()
 			},
-			command_topic: Some(self.mqtt_sub_topic_unit(unit).into()),
+			command_topic: self.mqtt_sub_topic_unit(unit).into(),
 			payload_on: Some(UnitCommand::Start.encode().into()),
 			payload_off: Some(UnitCommand::Stop.encode().into()),
 			state_topic: Some(self.mqtt_pub_topic_unit(unit).into()),
@@ -145,7 +147,9 @@ impl Args {
 				"{{% if {} %}}ON{{% else %}}OFF{{% endif %}}",
 				"value_json.active_state in ['active', 'activating', 'deactivating']",
 			).into()),
-			.. Default::default()
+			device_class: None,
+			optimistic: None,
+			retain: None,
 		}
 	}
 
