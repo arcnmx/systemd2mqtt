@@ -1,16 +1,12 @@
 { config, channels, pkgs, env, lib, ... }: with pkgs; with lib; let
-  importShell = config: writeText "shell.nix" ''
-    import ${builtins.unsafeDiscardStringContext config.shell.drvPath}
-  '';
-  cargo = config: name: command: ci.command {
+  cargo = name: command: ci.command {
     name = "cargo-${name}";
-    command = ''
-      nix-shell ${importShell config} --run ${escapeShellArg ("cargo " + command)}
-    '';
+    command = "cargo " + command;
     impure = true;
+    PKG_CONFIG_PATH = makeSearchPath "lib/pkgconfig" systemd2mqtt.buildInputs;
+    "NIX_LDFLAGS_${replaceStrings [ "-" ] [ "_" ] hostPlatform.config}" = map (i: "-L${i}/lib") systemd2mqtt.buildInputs;
   };
   systemd2mqtt = callPackage ./derivation.nix {
-    inherit (config.rustChannel) rustPlatform;
     buildType = "debug";
   };
 in {
@@ -27,36 +23,13 @@ in {
     };
     environment = {
       test = {
-        inherit (config.rustChannel.buildChannel) cargo;
+        inherit (pkgs) cargo pkg-config;
+        inherit (stdenv) cc;
       };
     };
     tasks = {
-      build.inputs = [
-        (cargo config "test" "test")
-        systemd2mqtt
-      ];
-    };
-    jobs = {
-      dev = { config, ... }: {
-        ci.gh-actions.emit = mkForce false;
-        channels.nixpkgs = config.parentConfig.channels.nixpkgs;
-        enableDev = true;
-      };
-    };
-  };
-
-  options = {
-    enableDev = mkEnableOption "dev shell generation";
-    rustChannel = mkOption {
-      type = types.unspecified;
-      default = channels.rust.stable; # arc.pkgs.rustPlatforms.nightly.hostChannel
-    };
-    shell = mkOption {
-      type = types.unspecified;
-      default = with pkgs; config.rustChannel.mkShell {
-        rustTools = optionals config.enableDev [ "rust-analyzer" "rust-src" ];
-        inherit (systemd2mqtt) buildInputs nativeBuildInputs;
-      };
+      test.inputs = cargo "test" "test";
+      build.inputs = systemd2mqtt;
     };
   };
 }

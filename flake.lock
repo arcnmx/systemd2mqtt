@@ -68,7 +68,28 @@
     "root": {
       "inputs": {
         "flakelib": "flakelib",
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": "nixpkgs",
+        "rust": "rust"
+      }
+    },
+    "rust": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1667583753,
+        "narHash": "sha256-RYL50Lsa+/FfB1NDh1hunVqYWfygz4yZCJ/TequN/9E=",
+        "owner": "arcnmx",
+        "repo": "nixexprs-rust",
+        "rev": "63a0dc661be09b17f169d5b7271792dd40e77f75",
+        "type": "github"
+      },
+      "original": {
+        "owner": "arcnmx",
+        "repo": "nixexprs-rust",
+        "type": "github"
       }
     },
     "std": {
