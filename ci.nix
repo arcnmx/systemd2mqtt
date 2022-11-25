@@ -1,35 +1,21 @@
-{ config, channels, pkgs, env, lib, ... }: with pkgs; with lib; let
-  cargo = name: command: ci.command {
-    name = "cargo-${name}";
-    command = "cargo " + command;
-    impure = true;
-    PKG_CONFIG_PATH = makeSearchPath "lib/pkgconfig" systemd2mqtt.buildInputs;
-    "NIX_LDFLAGS_${replaceStrings [ "-" ] [ "_" ] hostPlatform.config}" = map (i: "-L${i}/lib") systemd2mqtt.buildInputs;
-  };
-  systemd2mqtt = callPackage ./derivation.nix {
+{ config, pkgs, lib, ... }: with pkgs; with lib; let
+  inherit (import ./. { inherit pkgs; }) checks packages;
+  systemd2mqtt = packages.systemd2mqtt.override {
     buildType = "debug";
   };
 in {
   config = {
     name = "systemd2mqtt";
-    ci.gh-actions = {
-      enable = true;
-      emit = true;
+    ci.gh-actions.enable = true;
+    cache.cachix = {
+      ci.signingKey = "";
+      arc.enable = true;
     };
-    cache.cachix.arc.enable = true;
     channels = {
-      nixpkgs = mkIf (env.platform != "impure") "22.11";
-      rust = "master";
-    };
-    environment = {
-      test = {
-        inherit (pkgs) cargo pkg-config;
-        inherit (stdenv) cc;
-      };
+      nixpkgs = "22.11";
     };
     tasks = {
-      test.inputs = cargo "test" "test";
-      build.inputs = systemd2mqtt;
+      build.inputs = singleton systemd2mqtt;
     };
   };
 }
