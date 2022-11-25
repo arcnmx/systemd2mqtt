@@ -16,6 +16,7 @@ in {
     };
     tasks = {
       build.inputs = singleton systemd2mqtt;
+      rustfmt.inputs = singleton checks.rustfmt;
     };
   };
 }

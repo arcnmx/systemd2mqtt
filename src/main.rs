@@ -1,13 +1,13 @@
-use futures::{StreamExt, FutureExt, select, pin_mut};
-use anyhow::{Result, format_err};
-use clap::Parser;
+use {
+	self::{cli::Args, core::Core},
+	anyhow::{format_err, Result},
+	clap::Parser,
+	futures::{pin_mut, select, FutureExt, StreamExt},
+};
 
 mod cli;
 mod core;
 mod payload;
-
-use self::cli::Args;
-use self::core::Core;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -33,7 +33,8 @@ async fn main() -> Result<()> {
 		}
 		futures::future::try_join_all(futures).await?;
 		Ok::<(), anyhow::Error>(())
-	}.fuse();
+	}
+	.fuse();
 	pin_mut!(initial_setup);
 
 	let ctrlc = StreamExt::fuse(async_ctrlc::CtrlC::new().expect("ctrl+c"));

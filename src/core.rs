@@ -1,20 +1,16 @@
-use std::borrow::Cow;
-use std::collections::HashSet;
-use std::time::Duration;
-use anyhow::Result;
-use log::warn;
-use zbus_systemd::{
-	zbus,
-	systemd1::{ManagerProxy, UnitProxy},
-};
-use paho_mqtt::{
-	self as mqtt,
-	Message,
-	QOS_0 as QOS,
-};
-use crate::{
-	cli::Args,
-	payload::{ServiceStatus, ServiceCommand, UnitStatus, UnitCommand},
+use {
+	crate::{
+		cli::Args,
+		payload::{ServiceCommand, ServiceStatus, UnitCommand, UnitStatus},
+	},
+	anyhow::Result,
+	log::warn,
+	paho_mqtt::{self as mqtt, Message, QOS_0 as QOS},
+	std::{borrow::Cow, collections::HashSet, time::Duration},
+	zbus_systemd::{
+		systemd1::{ManagerProxy, UnitProxy},
+		zbus,
+	},
 };
 
 pub struct Core<'c> {
@@ -35,8 +31,7 @@ impl<'c> Core<'c> {
 	}
 
 	pub async fn sys_manager(&self) -> Result<ManagerProxy> {
-		ManagerProxy::new(&self.sys).await
-			.map_err(Into::into)
+		ManagerProxy::new(&self.sys).await.map_err(Into::into)
 	}
 
 	pub fn mqtt_will(&self) -> Message {
@@ -53,18 +48,31 @@ impl<'c> Core<'c> {
 
 			let payload = ServiceStatus {
 				is_active: true,
-				units: self.cli.interesting_units().iter()
-					.map(|&k| Cow::Borrowed(k))
-					.collect(),
+				units: self.cli.interesting_units().iter().map(|&k| Cow::Borrowed(k)).collect(),
 			};
-			self.mqtt.publish(Message::new_retained(self.cli.mqtt_pub_topic(), payload.encode(), mqtt::QOS_1)).await?;
+			self
+				.mqtt
+				.publish(Message::new_retained(
+					self.cli.mqtt_pub_topic(),
+					payload.encode(),
+					mqtt::QOS_1,
+				))
+				.await?;
 
 			for unit in self.cli.interesting_units() {
 				let switch = self.cli.hass_unit_switch(unit);
-				futures.push(self.mqtt.publish(self.cli.hass_announce_entity(true, &switch, &switch.entity)));
+				futures.push(
+					self
+						.mqtt
+						.publish(self.cli.hass_announce_entity(true, &switch, &switch.entity)),
+				);
 			}
 			let global = self.cli.hass_global_state();
-			futures.push(self.mqtt.publish(self.cli.hass_announce_entity(true, &global, &global.entity)));
+			futures.push(
+				self
+					.mqtt
+					.publish(self.cli.hass_announce_entity(true, &global, &global.entity)),
+			);
 
 			futures::future::try_join_all(futures).await?;
 		}
@@ -79,7 +87,10 @@ impl<'c> Core<'c> {
 			let mut opts = self.cli.mqtt_connect();
 			opts.will_message(self.mqtt_will());
 			self.mqtt.connect(opts.finalize()).await?;
-			self.mqtt.subscribe(format!("{}/+/activate", self.cli.topic_root()), QOS).await?;
+			self
+				.mqtt
+				.subscribe(format!("{}/+/activate", self.cli.topic_root()), QOS)
+				.await?;
 			self.mqtt.subscribe(self.cli.mqtt_sub_topic(), QOS).await?;
 		}
 
@@ -90,22 +101,34 @@ impl<'c> Core<'c> {
 		if self.cli.use_mqtt() {
 			let mut futures = Vec::new();
 			if self.cli.clean_up {
-				futures.push(self.mqtt.publish(
-					Message::new_retained(self.cli.hass_config_topic(&self.cli.hass_device_id()), "{}", QOS)
-				));
+				futures.push(self.mqtt.publish(Message::new_retained(
+					self.cli.hass_config_topic(&self.cli.hass_device_id()),
+					"{}",
+					QOS,
+				)));
 				for unit in self.cli.interesting_units() {
-					futures.push(self.mqtt.publish(
-						Message::new_retained(self.cli.hass_config_topic_unit(unit), "{}", QOS)
-					));
+					futures.push(
+						self
+							.mqtt
+							.publish(Message::new_retained(self.cli.hass_config_topic_unit(unit), "{}", QOS)),
+					);
 				}
 			} else {
 				// unset retain flag on entity configs
 				for unit in self.cli.interesting_units() {
 					let switch = self.cli.hass_unit_switch(unit);
-					futures.push(self.mqtt.publish(self.cli.hass_announce_entity(false, &switch, &switch.entity)));
+					futures.push(
+						self
+							.mqtt
+							.publish(self.cli.hass_announce_entity(false, &switch, &switch.entity)),
+					);
 				}
 				let global = self.cli.hass_global_state();
-				futures.push(self.mqtt.publish(self.cli.hass_announce_entity(false, &global, &global.entity)));
+				futures.push(
+					self
+						.mqtt
+						.publish(self.cli.hass_announce_entity(false, &global, &global.entity)),
+				);
 			}
 
 			if let Err(e) = futures::future::try_join_all(futures).await {
@@ -128,13 +151,13 @@ impl<'c> Core<'c> {
 			self.inform_unit(manager, unit_name).await?;
 		}
 		Ok(())
-
 	}
 
 	pub async fn inform_unit(&self, manager: &ManagerProxy<'_>, unit_name: &str) -> Result<()> {
 		let unit = UnitProxy::builder(&self.sys)
 			.path(manager.load_unit(unit_name.into()).await?)?
-			.build().await?;
+			.build()
+			.await?;
 
 		let payload = UnitStatus {
 			load_state: unit.load_state().await?,
@@ -146,10 +169,14 @@ impl<'c> Core<'c> {
 		};
 
 		if self.cli.use_mqtt() {
-			self.mqtt.publish(Message::new_retained(
-				self.cli.mqtt_pub_topic_unit(unit_name),
-				payload.encode(), QOS,
-			)).await?;
+			self
+				.mqtt
+				.publish(Message::new_retained(
+					self.cli.mqtt_pub_topic_unit(unit_name),
+					payload.encode(),
+					QOS,
+				))
+				.await?;
 		}
 
 		Ok(())
@@ -169,7 +196,7 @@ impl<'c> Core<'c> {
 			},
 			Err(e) => {
 				warn!("unsupported unit command: {:?}", e)
-			}
+			},
 		}
 		Ok(())
 	}
@@ -177,15 +204,14 @@ impl<'c> Core<'c> {
 	pub async fn handle_message(&self, manager: &ManagerProxy<'_>, message: &Message) -> Result<bool> {
 		let segments = message.topic().split('/').collect::<Vec<_>>();
 		match &segments[..] {
-			[ "systemd", hostname, .. ] if *hostname != self.cli.hostname() =>
-				(), // not for us, ignore
-			[ _, _, unit, "activate" ] => match self.interesting_units.contains(unit) {
+			["systemd", hostname, ..] if *hostname != self.cli.hostname() => (), // not for us, ignore
+			[_, _, unit, "activate"] => match self.interesting_units.contains(unit) {
 				true => self.handle_activate(manager, unit, &message.payload()).await?,
 				false => {
 					warn!("attempt to control untracked unit {}", unit);
 				},
 			},
-			[ _, _, "control" ] => match serde_json::from_slice::<ServiceCommand>(message.payload()) {
+			[_, _, "control"] => match serde_json::from_slice::<ServiceCommand>(message.payload()) {
 				Ok(ServiceCommand::Set { active }) => match active {
 					true => (), // ignore, already on
 					false => return Ok(false),

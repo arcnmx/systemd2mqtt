@@ -1,7 +1,8 @@
-use std::collections::HashSet;
-use std::borrow::Cow;
-use clap::Parser;
-use paho_mqtt as mqtt;
+use {
+	clap::Parser,
+	paho_mqtt as mqtt,
+	std::{borrow::Cow, collections::HashSet},
+};
 
 #[derive(Parser, Debug)]
 #[command(version)]
@@ -36,14 +37,19 @@ impl Args {
 	}
 
 	pub fn hostname(&self) -> Cow<str> {
-		self.hostname.as_ref().map(|s| Cow::Borrowed(&s[..]))
-			.unwrap_or_else(|| hostname::get().map(|h| Cow::Owned(h.to_string_lossy().into())).unwrap_or(Cow::Borrowed("systemd")))
+		self
+			.hostname
+			.as_ref()
+			.map(|s| Cow::Borrowed(&s[..]))
+			.unwrap_or_else(|| {
+				hostname::get()
+					.map(|h| Cow::Owned(h.to_string_lossy().into()))
+					.unwrap_or(Cow::Borrowed("systemd"))
+			})
 	}
 
 	pub fn interesting_units(&self) -> HashSet<&str> {
-		self.units.iter()
-			.map(|s| &s[..])
-			.collect()
+		self.units.iter().map(|s| &s[..]).collect()
 	}
 
 	pub fn use_mqtt(&self) -> bool {

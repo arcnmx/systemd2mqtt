@@ -1,12 +1,14 @@
-use std::borrow::Cow;
-use hass_mqtt_discovery::{
-	availability::Availability,
-	device::Device,
-	entity::{Entity, Switch},
-	entity_category::EntityCategory,
+use {
+	crate::cli::Args,
+	hass_mqtt_discovery::{
+		availability::Availability,
+		device::Device,
+		entity::{Entity, Switch},
+		entity_category::EntityCategory,
+	},
+	serde::{Deserialize, Serialize},
+	std::borrow::Cow,
 };
-use serde::{Serialize, Deserialize};
-use crate::cli::Args;
 
 #[derive(Serialize, Debug)]
 pub struct ServiceStatus<'a> {
@@ -23,9 +25,7 @@ impl ServiceStatus<'_> {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ServiceCommand {
-	Set {
-		active: bool,
-	},
+	Set { active: bool },
 }
 
 impl ServiceCommand {
@@ -66,16 +66,14 @@ impl UnitCommand {
 impl Args {
 	pub fn hass_device(&self) -> Device {
 		Device {
-			identifiers: self.hass_device_identifiers().into_iter()
-				.map(|id| id.into())
-				.collect(),
+			identifiers: self.hass_device_identifiers().into_iter().map(|id| id.into()).collect(),
 			manufacturer: Some(env!("CARGO_PKG_AUTHORS").into()),
 			model: Some(env!("CARGO_PKG_NAME").into()),
 			name: Some(self.hostname().to_string().into()),
 			sw_version: Some(env!("CARGO_PKG_VERSION").into()),
 			configuration_url: Some(env!("CARGO_PKG_HOMEPAGE").into()),
 			// hw_version: Some(version),
-			.. Default::default()
+			..Default::default()
 		}
 	}
 
@@ -94,7 +92,11 @@ impl Args {
 			payload_available: Some("ON".into()),
 			payload_not_available: Some("OFF".into()),
 			value_template: Some(
-				format!("{{% if value_json.is_active and '{}' in value_json.units %}}ON{{% else %}}OFF{{% endif %}}", unit).into()
+				format!(
+					"{{% if value_json.is_active and '{}' in value_json.units %}}ON{{% else %}}OFF{{% endif %}}",
+					unit
+				)
+				.into(),
 			),
 		}
 	}
@@ -107,15 +109,11 @@ impl Args {
 				name: Some(env!("CARGO_PKG_NAME").into()),
 				device: Some(self.hass_device()),
 				availability: vec![self.hass_availability()].into(),
-				.. Default::default()
+				..Default::default()
 			},
 			command_topic: self.mqtt_sub_topic().into(),
-			payload_on: Some(ServiceCommand::Set {
-				active: true,
-			}.encode().into()),
-			payload_off: Some(ServiceCommand::Set {
-				active: false,
-			}.encode().into()),
+			payload_on: Some(ServiceCommand::Set { active: true }.encode().into()),
+			payload_off: Some(ServiceCommand::Set { active: false }.encode().into()),
 			state_topic: Some(self.mqtt_pub_topic().into()),
 			state_on: Some("ON".into()),
 			state_off: Some("OFF".into()),
@@ -135,7 +133,7 @@ impl Args {
 				name: Some(self.hass_entity_name(unit).into()),
 				device: Some(self.hass_device()),
 				availability: vec![self.hass_availability_unit(unit)].into(),
-				.. Default::default()
+				..Default::default()
 			},
 			command_topic: self.mqtt_sub_topic_unit(unit).into(),
 			payload_on: Some(UnitCommand::Start.encode().into()),
@@ -143,10 +141,13 @@ impl Args {
 			state_topic: Some(self.mqtt_pub_topic_unit(unit).into()),
 			state_off: Some("OFF".into()),
 			state_on: Some("ON".into()),
-			value_template: Some(format!(
-				"{{% if {} %}}ON{{% else %}}OFF{{% endif %}}",
-				"value_json.active_state in ['active', 'activating', 'deactivating']",
-			).into()),
+			value_template: Some(
+				format!(
+					"{{% if {} %}}ON{{% else %}}OFF{{% endif %}}",
+					"value_json.active_state in ['active', 'activating', 'deactivating']",
+				)
+				.into(),
+			),
 			device_class: None,
 			optimistic: None,
 			retain: None,
@@ -155,16 +156,23 @@ impl Args {
 
 	pub fn hass_announce_entity<E: Serialize>(&self, retain: bool, config: &E, entity: &Entity) -> paho_mqtt::Message {
 		let payload = serde_json::to_string(config).unwrap();
-		let new = if retain { paho_mqtt::Message::new_retained } else { paho_mqtt::Message::new };
-		new(self.hass_config_topic(entity.unique_id.as_ref().unwrap()), payload, paho_mqtt::QOS_0)
+		let new = if retain {
+			paho_mqtt::Message::new_retained
+		} else {
+			paho_mqtt::Message::new
+		};
+		new(
+			self.hass_config_topic(entity.unique_id.as_ref().unwrap()),
+			payload,
+			paho_mqtt::QOS_0,
+		)
 	}
-
 
 	pub fn hass_device_id(&self) -> String {
 		format!("{}_{}", env!("CARGO_PKG_NAME"), self.hostname())
 	}
 
-	pub fn hass_device_identifiers(&self) -> impl IntoIterator<Item=String> {
+	pub fn hass_device_identifiers(&self) -> impl IntoIterator<Item = String> {
 		vec!["name".into(), format!("{}-{}", env!("CARGO_PKG_NAME"), self.hostname())]
 	}
 

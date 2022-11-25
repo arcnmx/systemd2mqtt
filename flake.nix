@@ -30,6 +30,9 @@
       default = { systemd2mqtt }: systemd2mqtt;
     };
     checks = {
+      rustfmt = { rust'builders, source }: rust'builders.check-rustfmt-unstable {
+        src = source;
+      };
       test = { rustPlatform, source }: rustPlatform.buildRustPackage {
         pname = self.lib.crate.package.name;
         inherit (self.lib.crate) cargoLock version;
