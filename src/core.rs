@@ -61,18 +61,18 @@ impl<'c> Core<'c> {
 
 			for unit in self.cli.interesting_units() {
 				let switch = self.cli.hass_unit_switch(unit);
-				futures.push(
-					self
-						.mqtt
-						.publish(self.cli.hass_announce_entity(true, &switch, &switch.entity)),
-				);
+				futures.push(self.mqtt.publish(self.cli.hass_announce_entity(
+					true,
+					&switch,
+					switch.unique_id.as_ref().unwrap(),
+				)));
 			}
 			let global = self.cli.hass_global_state();
-			futures.push(
-				self
-					.mqtt
-					.publish(self.cli.hass_announce_entity(true, &global, &global.entity)),
-			);
+			futures.push(self.mqtt.publish(self.cli.hass_announce_entity(
+				true,
+				&global,
+				&global.unique_id.as_ref().unwrap(),
+			)));
 
 			futures::future::try_join_all(futures).await?;
 		}
@@ -117,18 +117,18 @@ impl<'c> Core<'c> {
 				// unset retain flag on entity configs
 				for unit in self.cli.interesting_units() {
 					let switch = self.cli.hass_unit_switch(unit);
-					futures.push(
-						self
-							.mqtt
-							.publish(self.cli.hass_announce_entity(false, &switch, &switch.entity)),
-					);
+					futures.push(self.mqtt.publish(self.cli.hass_announce_entity(
+						false,
+						&switch,
+						switch.unique_id.as_ref().unwrap(),
+					)));
 				}
 				let global = self.cli.hass_global_state();
-				futures.push(
-					self
-						.mqtt
-						.publish(self.cli.hass_announce_entity(false, &global, &global.entity)),
-				);
+				futures.push(self.mqtt.publish(self.cli.hass_announce_entity(
+					false,
+					&global,
+					global.unique_id.as_ref().unwrap(),
+				)));
 			}
 
 			if let Err(e) = futures::future::try_join_all(futures).await {

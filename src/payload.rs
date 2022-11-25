@@ -1,11 +1,6 @@
 use {
 	crate::cli::Args,
-	hass_mqtt_discovery::{
-		availability::Availability,
-		device::Device,
-		entity::{Entity, Switch},
-		entity_category::EntityCategory,
-	},
+	hass_mqtt_discovery::{availability::Availability, device::Device, entity::Switch, entity_category::EntityCategory},
 	serde::{Deserialize, Serialize},
 	std::borrow::Cow,
 };
@@ -103,15 +98,11 @@ impl Args {
 
 	pub fn hass_global_state(&self) -> Switch {
 		Switch {
-			entity: Entity {
-				unique_id: Some(self.hass_device_id().into()),
-				object_id: Some(self.hass_device_id().into()),
-				name: Some(env!("CARGO_PKG_NAME").into()),
-				device: Some(self.hass_device()),
-				availability: vec![self.hass_availability()].into(),
-				..Default::default()
-			},
-			command_topic: self.mqtt_sub_topic().into(),
+			unique_id: Some(self.hass_device_id().into()),
+			object_id: Some(self.hass_device_id().into()),
+			name: Some(env!("CARGO_PKG_NAME").into()),
+			device: Some(self.hass_device()),
+			availability: vec![self.hass_availability()].into(),
 			payload_on: Some(ServiceCommand::Set { active: true }.encode().into()),
 			payload_off: Some(ServiceCommand::Set { active: false }.encode().into()),
 			state_topic: Some(self.mqtt_pub_topic().into()),
@@ -121,24 +112,21 @@ impl Args {
 			device_class: None,
 			optimistic: None,
 			retain: None,
+			..Switch::new(self.mqtt_sub_topic())
 		}
 	}
 
 	pub fn hass_unit_switch(&self, unit: &str) -> Switch {
 		Switch {
-			entity: Entity {
-				unique_id: Some(self.hass_unique_id(unit).into()),
-				object_id: Some(self.hass_unique_id(unit).into()),
-				entity_category: self.hass_entity_category(unit),
-				name: Some(self.hass_entity_name(unit).into()),
-				device: Some(self.hass_device()),
-				availability: vec![self.hass_availability_unit(unit)].into(),
-				..Default::default()
-			},
+			unique_id: Some(self.hass_unique_id(unit).into()),
+			object_id: Some(self.hass_unique_id(unit).into()),
+			entity_category: self.hass_entity_category(unit),
+			name: Some(self.hass_entity_name(unit).into()),
+			device: Some(self.hass_device()),
+			availability: vec![self.hass_availability_unit(unit)].into(),
 			command_topic: self.mqtt_sub_topic_unit(unit).into(),
 			payload_on: Some(UnitCommand::Start.encode().into()),
 			payload_off: Some(UnitCommand::Stop.encode().into()),
-			state_topic: Some(self.mqtt_pub_topic_unit(unit).into()),
 			state_off: Some("OFF".into()),
 			state_on: Some("ON".into()),
 			value_template: Some(
@@ -151,21 +139,18 @@ impl Args {
 			device_class: None,
 			optimistic: None,
 			retain: None,
+			..Switch::new(self.mqtt_pub_topic_unit(unit))
 		}
 	}
 
-	pub fn hass_announce_entity<E: Serialize>(&self, retain: bool, config: &E, entity: &Entity) -> paho_mqtt::Message {
+	pub fn hass_announce_entity<E: Serialize>(&self, retain: bool, config: &E, unique_id: &str) -> paho_mqtt::Message {
 		let payload = serde_json::to_string(config).unwrap();
 		let new = if retain {
 			paho_mqtt::Message::new_retained
 		} else {
 			paho_mqtt::Message::new
 		};
-		new(
-			self.hass_config_topic(entity.unique_id.as_ref().unwrap()),
-			payload,
-			paho_mqtt::QOS_0,
-		)
+		new(self.hass_config_topic(unique_id), payload, paho_mqtt::QOS_0)
 	}
 
 	pub fn hass_device_id(&self) -> String {
