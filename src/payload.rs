@@ -97,50 +97,40 @@ impl Args {
 	}
 
 	pub fn hass_global_state(&self) -> Switch {
-		Switch {
-			unique_id: Some(self.hass_device_id().into()),
-			object_id: Some(self.hass_device_id().into()),
-			name: Some(env!("CARGO_PKG_NAME").into()),
-			device: Some(self.hass_device()),
-			availability: vec![self.hass_availability()].into(),
-			payload_on: Some(ServiceCommand::Set { active: true }.encode().into()),
-			payload_off: Some(ServiceCommand::Set { active: false }.encode().into()),
-			state_topic: Some(self.mqtt_pub_topic().into()),
-			state_on: Some("ON".into()),
-			state_off: Some("OFF".into()),
-			value_template: Some("{% if value_json.is_active %}ON{% else %}OFF{% endif %}".into()),
-			device_class: None,
-			optimistic: None,
-			retain: None,
-			..Switch::new(self.mqtt_sub_topic())
-		}
+		Switch::new(self.mqtt_sub_topic())
+			.unique_id(self.hass_device_id())
+			.object_id(self.hass_device_id())
+			.name(env!("CARGO_PKG_NAME"))
+			.device(self.hass_device())
+			.availability(vec![self.hass_availability()])
+			.payload_on(ServiceCommand::Set { active: true }.encode())
+			.payload_off(ServiceCommand::Set { active: false }.encode())
+			.state_on("ON")
+			.state_off("OFF")
+			.value_template("{% if value_json.is_active %}ON{% else %}OFF{% endif %}")
 	}
 
 	pub fn hass_unit_switch(&self, unit: &str) -> Switch {
-		Switch {
-			unique_id: Some(self.hass_unique_id(unit).into()),
-			object_id: Some(self.hass_unique_id(unit).into()),
-			entity_category: self.hass_entity_category(unit),
-			name: Some(self.hass_entity_name(unit).into()),
-			device: Some(self.hass_device()),
-			availability: vec![self.hass_availability_unit(unit)].into(),
-			command_topic: self.mqtt_sub_topic_unit(unit).into(),
-			payload_on: Some(UnitCommand::Start.encode().into()),
-			payload_off: Some(UnitCommand::Stop.encode().into()),
-			state_off: Some("OFF".into()),
-			state_on: Some("ON".into()),
-			value_template: Some(
-				format!(
-					"{{% if {} %}}ON{{% else %}}OFF{{% endif %}}",
-					"value_json.active_state in ['active', 'activating', 'deactivating']",
-				)
-				.into(),
-			),
-			device_class: None,
-			optimistic: None,
-			retain: None,
-			..Switch::new(self.mqtt_pub_topic_unit(unit))
-		}
+		Switch::new(self.mqtt_pub_topic_unit(unit))
+			.unique_id(self.hass_unique_id(unit))
+			.object_id(self.hass_unique_id(unit))
+			.entity_category(self.hass_entity_category(unit))
+			.name(self.hass_entity_name(unit))
+			.device(self.hass_device())
+			.availability(vec![self.hass_availability_unit(unit)])
+			.command_topic(self.mqtt_sub_topic_unit(unit))
+			.payload_on(UnitCommand::Start.encode())
+			.payload_off(UnitCommand::Stop.encode())
+			.state_off("OFF")
+			.state_on("ON")
+			.value_template(
+				"\
+				{% if value_json.active_state in ['active', 'activating', 'deactivating'] %}\
+				ON\
+				{% else %}\
+				OFF\
+				{% endif %}",
+			)
 	}
 
 	pub fn hass_announce_entity<E: Serialize>(&self, retain: bool, config: &E, unique_id: &str) -> paho_mqtt::Message {
