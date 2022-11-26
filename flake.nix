@@ -43,16 +43,16 @@
     };
     devShells = {
       plain = {
-        mkShell, hostPlatform, lib
+        mkShell, writeShellScriptBin, hostPlatform, lib
       , enableRust ? true, cargo
       , rustTools ? [ ]
-      , systemd2mqtt, generate
+      , systemd2mqtt
       }: mkShell {
         allowBroken = true;
         inherit rustTools;
         inherit (systemd2mqtt) buildInputs;
         nativeBuildInputs = systemd2mqtt.nativeBuildInputs ++ optional enableRust cargo ++ [
-          generate
+          (writeShellScriptBin "generate" ''nix run .#generate "$@"'')
         ];
       };
       stable = { rust'stable, outputs'devShells'plain }: outputs'devShells'plain.override {
