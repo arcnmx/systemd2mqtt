@@ -1,6 +1,7 @@
 = systemd2mqtt
 
-Expose systemd services to MQTT
+Expose systemd services to MQTT.
+Service state changes are broadcast to the MQTT broker for clients to subscribe to, and units can be manipulated by publishing messages to the control topic.
 
 [source,bash]
 ----

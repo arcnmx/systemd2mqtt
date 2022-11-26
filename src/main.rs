@@ -3,6 +3,7 @@ use {
 	anyhow::{format_err, Result},
 	clap::Parser,
 	futures::{pin_mut, select, FutureExt, StreamExt},
+	log::info,
 };
 
 mod cli;
@@ -23,22 +24,46 @@ async fn main() -> Result<()> {
 	let mut new_jobs = manager.receive_job_new().await?;
 	let mut done_jobs = manager.receive_job_removed().await?;
 
+	let ctrlc = StreamExt::fuse(async_ctrlc::CtrlC::new().expect("ctrl+c"));
+	pin_mut!(ctrlc);
+
+	let units = core.unit_proxies(&manager).fuse();
+	pin_mut!(units);
+
+	let units = select! {
+		units = units => units,
+		_ = ctrlc.next() => return Ok(()),
+	};
+
+	let systemd_changes = futures::future::join_all(units.iter().map(|(_, (unit, proxy))| {
+		proxy
+			.receive_active_state_changed()
+			.map(move |c| c.map(move |c| (unit, proxy, c)))
+	}))
+	.fuse();
+	pin_mut!(systemd_changes);
+
+	let systemd_changes = select! {
+		res = systemd_changes => res,
+		_ = ctrlc.next() => return Ok(()),
+	};
+
+	let systemd_changes = futures::stream::select_all(systemd_changes);
+	pin_mut!(systemd_changes);
+
 	core.connect(&manager).await?;
 
 	let initial_setup = async {
 		core.announce().await?;
 		let mut futures = Vec::new();
-		for unit in &core.interesting_units {
-			futures.push(core.inform_unit(&manager, unit));
+		for (unit, proxy) in units.values() {
+			futures.push(core.inform_unit(unit, proxy));
 		}
 		futures::future::try_join_all(futures).await?;
 		Ok::<(), anyhow::Error>(())
 	}
 	.fuse();
 	pin_mut!(initial_setup);
-
-	let ctrlc = StreamExt::fuse(async_ctrlc::CtrlC::new().expect("ctrl+c"));
-	pin_mut!(ctrlc);
 
 	loop {
 		select! {
@@ -52,13 +77,24 @@ async fn main() -> Result<()> {
 				let job_new = job_new
 					.ok_or_else(|| format_err!("lost systemd connection"))?;
 				let job_new = job_new.args()?;
-				core.inform_job(&manager, job_new.id(), job_new.unit()).await?;
+				let unit_name = job_new.unit();
+				match units.get(&unit_name[..]) {
+					Some((unit, proxy)) => core.inform_unit(unit, proxy).await?,
+					None => info!("uninterested in new {} job", unit_name),
+				}
 			},
 			job_removed = done_jobs.next() => {
 				let job_removed = job_removed
 					.ok_or_else(|| format_err!("lost systemd connection"))?;
 				let job_removed = job_removed.args()?;
-				core.inform_job(&manager, job_removed.id(), job_removed.unit()).await?;
+				let unit_name = job_removed.unit();
+				match units.get(&unit_name[..]) {
+					Some((unit, proxy)) => core.inform_unit(unit, proxy).await?,
+					None => info!("uninterested in removed {} job", unit_name),
+				}
+			},
+			res = systemd_changes.next() => if let Some((unit, proxy, _active_changed)) = res {
+				core.inform_unit(unit, proxy).await?;
 			},
 			message = messages.next() => {
 				let message = match message {

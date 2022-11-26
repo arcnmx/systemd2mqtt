@@ -1,9 +1,12 @@
 use {
-	crate::cli::Args,
-	hass_mqtt_discovery::{availability::Availability, device::Device, entity::Switch, entity_category::EntityCategory},
+	crate::cli::{Args, Unit},
+	hass_mqtt_discovery::{Availability, BinarySensor, Device, Document, Switch},
 	serde::{Deserialize, Serialize},
-	std::borrow::Cow,
+	std::{borrow::Cow, fmt::Debug},
 };
+
+const ON: &'static str = "ON";
+const OFF: &'static str = "OFF";
 
 #[derive(Serialize, Debug)]
 pub struct ServiceStatus<'a> {
@@ -75,23 +78,14 @@ impl Args {
 	pub fn hass_availability(&self) -> Availability {
 		Availability {
 			topic: self.mqtt_pub_topic().into(),
-			payload_available: Some("ON".into()),
-			payload_not_available: Some("OFF".into()),
-			value_template: Some("{% if value_json.is_active %}ON{% else %}OFF{% endif %}".into()),
-		}
-	}
-
-	pub fn hass_availability_unit(&self, unit: &str) -> Availability {
-		Availability {
-			topic: self.mqtt_pub_topic().into(),
-			payload_available: Some("ON".into()),
-			payload_not_available: Some("OFF".into()),
+			payload_available: Some(ON.into()),
+			payload_not_available: Some(OFF.into()),
 			value_template: Some(
-				format!(
-					"{{% if value_json.is_active and '{}' in value_json.units %}}ON{{% else %}}OFF{{% endif %}}",
-					unit
-				)
-				.into(),
+				"\
+				{% if value_json.is_active %}ON\
+				{% else %}OFF\
+				{% endif %}"
+					.into(),
 			),
 		}
 	}
@@ -103,44 +97,36 @@ impl Args {
 			.name(env!("CARGO_PKG_NAME"))
 			.device(self.hass_device())
 			.availability(vec![self.hass_availability()])
+			.json_attributes_topic(self.mqtt_pub_topic())
+			.state_topic(self.mqtt_pub_topic())
 			.payload_on(ServiceCommand::Set { active: true }.encode())
 			.payload_off(ServiceCommand::Set { active: false }.encode())
-			.state_on("ON")
-			.state_off("OFF")
-			.value_template("{% if value_json.is_active %}ON{% else %}OFF{% endif %}")
-	}
-
-	pub fn hass_unit_switch(&self, unit: &str) -> Switch {
-		Switch::new(self.mqtt_pub_topic_unit(unit))
-			.unique_id(self.hass_unique_id(unit))
-			.object_id(self.hass_unique_id(unit))
-			.entity_category(self.hass_entity_category(unit))
-			.name(self.hass_entity_name(unit))
-			.device(self.hass_device())
-			.availability(vec![self.hass_availability_unit(unit)])
-			.command_topic(self.mqtt_sub_topic_unit(unit))
-			.payload_on(UnitCommand::Start.encode())
-			.payload_off(UnitCommand::Stop.encode())
-			.state_off("OFF")
-			.state_on("ON")
+			.state_on(ON)
+			.state_off(OFF)
 			.value_template(
 				"\
-				{% if value_json.active_state in ['active', 'activating', 'deactivating'] %}\
-				ON\
-				{% else %}\
-				OFF\
+				{% if value_json.is_active %}ON\
+				{% else %}OFF\
 				{% endif %}",
 			)
 	}
 
-	pub fn hass_announce_entity<E: Serialize>(&self, retain: bool, config: &E, unique_id: &str) -> paho_mqtt::Message {
-		let payload = serde_json::to_string(config).unwrap();
+	pub fn hass_announce(&self, config: &dyn Entity, retain: bool) -> Result<paho_mqtt::Message, serde_json::Error> {
+		let payload = config.to_json()?;
 		let new = if retain {
 			paho_mqtt::Message::new_retained
 		} else {
 			paho_mqtt::Message::new
 		};
-		new(self.hass_config_topic(unique_id), payload, paho_mqtt::QOS_0)
+		Ok(new(self.hass_config_topic(config), payload, paho_mqtt::QOS_0))
+	}
+
+	pub fn hass_config_topic(&self, config: &dyn Entity) -> String {
+		self.hass_config_topic_with(config.platform(), config.unique_id())
+	}
+
+	pub fn hass_config_topic_with(&self, platform: &'static str, unique_id: &str) -> String {
+		format!("{}/{}/{}/config", self.discovery_prefix, platform, unique_id)
 	}
 
 	pub fn hass_device_id(&self) -> String {
@@ -150,28 +136,158 @@ impl Args {
 	pub fn hass_device_identifiers(&self) -> impl IntoIterator<Item = String> {
 		vec!["name".into(), format!("{}-{}", env!("CARGO_PKG_NAME"), self.hostname())]
 	}
+}
 
-	pub fn hass_entity_category(&self, unit: &str) -> EntityCategory {
-		let is_config = true;
-		match is_config {
-			true => EntityCategory::Config,
-			false => EntityCategory::None,
+impl<'a> Unit<'a> {
+	pub fn to_hass_config(&self) -> Box<dyn Entity + 'a> {
+		match self.hass_platform() {
+			"switch" => Box::new(self.hass_config_switch()) as Box<_>,
+			"binary_sensor" => Box::new(self.hass_config_sensor()) as Box<_>,
+			p => unimplemented!("{p} platform for {}", self.unit_name()),
 		}
 	}
 
-	pub fn hass_unique_id(&self, unit: &str) -> String {
-		format!("{}_{}", self.hostname(), Self::unit_short_name(unit))
+	pub fn hass_config_switch<'s>(&'s self) -> Switch<'a> {
+		let (pon, poff, son, soff) = match self.unit.invert_state {
+			false => (UnitCommand::Start, UnitCommand::Stop, ON, OFF),
+			true => (UnitCommand::Stop, UnitCommand::Start, OFF, ON),
+		};
+		let mut switch = Switch::new(self.mqtt_sub_topic())
+			.unique_id(self.unique_id())
+			.object_id(self.object_id())
+			.entity_category(self.entity_category)
+			.enabled_by_default(self.enabled_by_default)
+			.name(self.name())
+			.device(self.cli.hass_device())
+			.availability(vec![self.hass_availability()])
+			.json_attributes_topic(self.mqtt_pub_topic())
+			.state_topic(self.mqtt_pub_topic())
+			.payload_on(pon.encode())
+			.payload_off(poff.encode())
+			.state_on(son)
+			.state_off(soff)
+			.value_template(
+				"\
+				{% if value_json.active_state in ['active', 'activating', 'deactivating'] %}ON\
+				{% else %}OFF\
+				{% endif %}",
+			);
+		switch.icon = self.icon().map(|s| s[..].into());
+		switch.device_class = self.device_class;
+		switch
 	}
 
-	pub fn hass_entity_name(&self, unit: &str) -> String {
-		Self::unit_short_name(unit).into()
+	pub fn hass_config_sensor<'s>(&'s self) -> BinarySensor<'a> {
+		let (on, off) = match self.unit.invert_state {
+			false => (ON, OFF),
+			true => (OFF, ON),
+		};
+		let mut sensor = BinarySensor::new(self.mqtt_pub_topic())
+			.unique_id(self.unique_id())
+			.object_id(self.object_id())
+			.entity_category(self.entity_category)
+			.enabled_by_default(self.enabled_by_default)
+			.name(self.name())
+			.device(self.cli.hass_device())
+			.availability(vec![self.hass_availability()])
+			.json_attributes_topic(self.mqtt_pub_topic())
+			.payload_on(on)
+			.payload_off(off)
+			.value_template(
+				"\
+				{% if value_json.active_state in ['active', 'activating', 'deactivating'] %}ON\
+				{% else %}OFF\
+				{% endif %}",
+			);
+		sensor.icon = self.icon().map(|s| s[..].into());
+		sensor.device_class = self.device_class.unwrap_or_default();
+		sensor
 	}
 
-	pub fn hass_config_topic(&self, unique_id: &str) -> String {
-		format!("{}/switch/{}/config", self.discovery_prefix, unique_id)
+	pub fn hass_availability(&self) -> Availability<'static> {
+		Availability {
+			topic: self.cli.mqtt_pub_topic().into(),
+			payload_available: Some(ON.into()),
+			payload_not_available: Some(OFF.into()),
+			value_template: Some(
+				format!(
+					"\
+					{{% if value_json.is_active and '{}' in value_json.units %}}ON\
+					{{% else %}}OFF\
+					{{% endif %}}",
+					self.unit_name(),
+				)
+				.into(),
+			),
+		}
+	}
+}
+
+type JsonSerializer<'w> = serde_json::Serializer<&'w mut Vec<u8>>;
+
+pub trait Entity: Debug {
+	fn unique_id(&self) -> &str;
+	fn platform(&self) -> &'static str;
+	fn serialize_json(&self, serializer: &mut JsonSerializer) -> Result<(), serde_json::Error>;
+
+	fn to_json(&self) -> serde_json::Result<Vec<u8>> {
+		let mut data = Vec::new();
+		let mut ser = JsonSerializer::new(&mut data);
+		self.serialize_json(&mut ser)?;
+		Ok(data)
+	}
+}
+
+impl<'a> Unit<'a> {
+	pub fn hass_config<'u>(&'u self) -> &'u (dyn Entity + 'a) {
+		self.config.get_or_init(|| self.to_hass_config()).as_ref()
 	}
 
-	pub fn hass_config_topic_unit(&self, unit: &str) -> String {
-		self.hass_config_topic(&self.hass_unique_id(unit))
+	pub fn hass_announce(&self, retain: bool) -> serde_json::Result<paho_mqtt::Message> {
+		self.cli.hass_announce(self.hass_config(), retain)
 	}
+
+	pub fn hass_config_topic(&self) -> String {
+		self.cli.hass_config_topic_with(self.platform(), &self.unique_id())
+	}
+}
+
+impl<'a> Entity for Unit<'a> {
+	fn unique_id(&self) -> &str {
+		self.hass_config().unique_id()
+	}
+
+	fn platform(&self) -> &'static str {
+		self.hass_config().platform()
+	}
+
+	fn serialize_json(&self, serializer: &mut JsonSerializer) -> Result<(), serde_json::Error> {
+		self.hass_config().serialize_json(serializer)
+	}
+}
+
+macro_rules! impl_entity {
+	($($ty:ident = $platform:literal,)*) => {
+		$(
+			impl<'a> Entity for hass_mqtt_discovery::$ty<'a> {
+				fn platform(&self) -> &'static str {
+					$platform
+				}
+
+				fn unique_id(&self) -> &str {
+					self.unique_id.as_ref()
+						.expect("valid unique_id")
+				}
+
+				fn serialize_json(&self, serializer: &mut JsonSerializer) -> Result<(), serde_json::Error> {
+					Document::serialize(self, serializer)
+				}
+			}
+		)*
+	};
+}
+
+impl_entity! {
+	Switch = "switch", Button = "button",
+	Sensor = "sensor", BinarySensor = "binary_sensor",
 }
