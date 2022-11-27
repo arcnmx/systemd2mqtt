@@ -77,6 +77,14 @@
       };
       default = { outputs'devShells }: outputs'devShells.plain;
     };
+    nixosModules = {
+      systemd2mqtt = import ./nixos.nix;
+      default = self.nixosModules.systemd2mqtt;
+    };
+    overlays = {
+      systemd2mqtt = import ./overlay.nix;
+      default = self.overlays.systemd2mqtt;
+    };
     legacyPackages = { callPackageSet }: callPackageSet {
       source = { rust'builders }: rust'builders.wrapSource self.lib.crate.src;
 
