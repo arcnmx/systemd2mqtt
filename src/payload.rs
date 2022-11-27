@@ -147,6 +147,7 @@ impl<'a> Unit<'a> {
 			.unique_id(self.unique_id())
 			.object_id(self.object_id())
 			.entity_category(self.entity_category)
+			.device_class(self.device_class)
 			.enabled_by_default(self.enabled_by_default)
 			.name(self.name())
 			.device(self.cli.hass_device())
@@ -164,7 +165,6 @@ impl<'a> Unit<'a> {
 				{% endif %}",
 			);
 		switch.icon = self.icon().map(|s| s[..].into());
-		switch.device_class = self.device_class;
 		switch
 	}
 
@@ -177,6 +177,7 @@ impl<'a> Unit<'a> {
 			.unique_id(self.unique_id())
 			.object_id(self.object_id())
 			.entity_category(self.entity_category)
+			.device_class(self.device_class)
 			.enabled_by_default(self.enabled_by_default)
 			.name(self.name())
 			.device(self.cli.hass_device())
@@ -191,7 +192,6 @@ impl<'a> Unit<'a> {
 				{% endif %}",
 			);
 		sensor.icon = self.icon().map(|s| s[..].into());
-		sensor.device_class = self.device_class.unwrap_or_default();
 		sensor
 	}
 

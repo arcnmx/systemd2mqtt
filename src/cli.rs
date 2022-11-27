@@ -1,7 +1,7 @@
 use {
 	anyhow::Error,
 	clap::Parser,
-	hass_mqtt_discovery::EntityCategory,
+	hass_mqtt_discovery::{DeviceClass, EntityCategory},
 	once_cell::sync::Lazy,
 	paho_mqtt as mqtt,
 	serde::{Deserialize, Serialize},
@@ -62,8 +62,8 @@ pub struct UnitConfig {
 	pub name: Option<String>,
 	#[serde(alias = "entity_id", default, skip_serializing_if = "Option::is_none")]
 	pub object_id: Option<String>,
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub device_class: Option<hass_mqtt_discovery::DeviceClass>,
+	#[serde(default, skip_serializing_if = "DeviceClass::is_none")]
+	pub device_class: DeviceClass,
 }
 
 impl Args {
