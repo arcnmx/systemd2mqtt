@@ -63,7 +63,7 @@ impl<'c> Core<'c> {
 			for unit in self.units.values() {
 				futures.push(self.mqtt.publish(unit.hass_announce(true)?));
 			}
-			let global = self.cli.hass_global_state();
+			let global = self.cli.hass_diag_button();
 			futures.push(self.mqtt.publish(self.cli.hass_announce(&global, true)?));
 
 			futures::future::try_join_all(futures).await?;
@@ -91,7 +91,7 @@ impl<'c> Core<'c> {
 
 	pub async fn disconnect(&self) -> Result<()> {
 		if self.cli.use_mqtt() {
-			let global = self.cli.hass_global_state();
+			let global = self.cli.hass_diag_button();
 			let mut futures = Vec::new();
 			if self.cli.clean_up {
 				for unit in self.units.values() {

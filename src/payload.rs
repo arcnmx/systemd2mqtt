@@ -1,6 +1,6 @@
 use {
 	crate::cli::{Args, Unit},
-	hass_mqtt_discovery::{Availability, BinarySensor, Device, Document, Switch},
+	hass_mqtt_discovery::{Availability, BinarySensor, Button, Device, Document, EntityCategory, Switch},
 	serde::{Deserialize, Serialize},
 	std::{borrow::Cow, fmt::Debug},
 };
@@ -90,25 +90,16 @@ impl Args {
 		}
 	}
 
-	pub fn hass_global_state(&self) -> Switch {
-		Switch::new(self.mqtt_sub_topic())
+	pub fn hass_diag_button(&self) -> Button {
+		Button::new(self.mqtt_sub_topic())
 			.unique_id(self.hass_device_id())
 			.object_id(self.hass_device_id())
-			.name(env!("CARGO_PKG_NAME"))
+			.name(format!("{} reset", env!("CARGO_PKG_NAME")))
 			.device(self.hass_device())
 			.availability(vec![self.hass_availability()])
 			.json_attributes_topic(self.mqtt_pub_topic())
-			.state_topic(self.mqtt_pub_topic())
-			.payload_on(ServiceCommand::Set { active: true }.encode())
-			.payload_off(ServiceCommand::Set { active: false }.encode())
-			.state_on(ON)
-			.state_off(OFF)
-			.value_template(
-				"\
-				{% if value_json.is_active %}ON\
-				{% else %}OFF\
-				{% endif %}",
-			)
+			.payload_press(ServiceCommand::Set { active: false }.encode())
+			.entity_category(EntityCategory::Diagnostic)
 	}
 
 	pub fn hass_announce(&self, config: &dyn Entity, retain: bool) -> Result<paho_mqtt::Message, serde_json::Error> {
