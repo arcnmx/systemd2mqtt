@@ -26,7 +26,12 @@
       name = "systemd2mqtt";
     };
     packages = {
-      systemd2mqtt = ./derivation.nix;
+      systemd2mqtt = {
+        __functor = _: import ./derivation.nix;
+        fl'config.args = {
+          cargoLock.fallback = self.lib.crate.cargoLock;
+        };
+      };
       default = { systemd2mqtt }: systemd2mqtt;
     };
     checks = {
