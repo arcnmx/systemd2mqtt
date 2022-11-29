@@ -77,12 +77,16 @@
       };
       default = { outputs'devShells }: outputs'devShells.plain;
     };
-    nixosModules = {
-      systemd2mqtt = import ./nixos.nix;
+    nixosModules = let
+      inherit (flakelib.lib.Std.Flake) Outputs;
+    in {
+      systemd2mqtt = Outputs.WrapModule ./nixos.nix;
       default = self.nixosModules.systemd2mqtt;
     };
-    overlays = {
-      systemd2mqtt = import ./overlay.nix;
+    overlays = let
+      inherit (flakelib.lib.Std.Flake) Outputs;
+    in {
+      systemd2mqtt = Outputs.WrapOverlay ./overlay.nix;
       default = self.overlays.systemd2mqtt;
     };
     legacyPackages = { callPackageSet }: callPackageSet {
