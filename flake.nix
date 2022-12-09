@@ -29,7 +29,7 @@
       systemd2mqtt = {
         __functor = _: import ./derivation.nix;
         fl'config.args = {
-          cargoLock.fallback = self.lib.crate.cargoLock;
+          crate.fallback = self.lib.crate;
         };
       };
       default = { systemd2mqtt }: systemd2mqtt;

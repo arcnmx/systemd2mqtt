@@ -1,18 +1,18 @@
 let
   self = import ./. { pkgs = null; system = null; };
-in { rustPlatform
+in {
+  rustPlatform
 , nix-gitignore
 , buildType ? "release"
 , openssl, pkg-config
 , paho-mqtt-c
 , lib
-, cargoLock ? self.lib.crate.cargoLock
-, source ? self.lib.crate.src
-}: with lib; let
-  cargoToml = importTOML ./Cargo.toml;
-in rustPlatform.buildRustPackage {
-  pname = cargoToml.package.name;
-  version = cargoToml.package.version;
+, cargoLock ? crate.cargoLock
+, source ? crate.src
+, crate ? self.lib.crate
+}: with lib; rustPlatform.buildRustPackage {
+  pname = crate.name;
+  inherit (crate) version;
 
   src = source;
   inherit cargoLock;
