@@ -1,7 +1,7 @@
 use {
 	anyhow::Error,
 	clap::Parser,
-	hass_mqtt_discovery::{DeviceClass, EntityCategory},
+	hass_mqtt_types::{DeviceClass, EntityCategory},
 	once_cell::sync::Lazy,
 	paho_mqtt as mqtt,
 	serde::{Deserialize, Serialize},

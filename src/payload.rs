@@ -1,6 +1,6 @@
 use {
 	crate::cli::{Args, Unit},
-	hass_mqtt_discovery::{Availability, BinarySensor, Button, Device, Document, EntityCategory, Switch},
+	hass_mqtt_types::{Availability, BinarySensor, Button, Device, Document, EntityCategory, Switch},
 	serde::{Deserialize, Serialize},
 	std::{borrow::Cow, fmt::Debug},
 };
@@ -260,7 +260,7 @@ impl<'a> Entity for Unit<'a> {
 macro_rules! impl_entity {
 	($($ty:ident = $platform:literal,)*) => {
 		$(
-			impl<'a> Entity for hass_mqtt_discovery::$ty<'a> {
+			impl<'a> Entity for hass_mqtt_types::$ty<'a> {
 				fn platform(&self) -> &'static str {
 					$platform
 				}
