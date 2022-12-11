@@ -1,11 +1,10 @@
 use {
-	anyhow::Error,
+	crate::Error,
 	clap::Parser,
 	hass_mqtt_types::{DeviceClass, EntityCategory},
 	once_cell::sync::Lazy,
-	paho_mqtt as mqtt,
 	serde::{Deserialize, Serialize},
-	std::{borrow::Cow, collections::HashMap, ops::Deref, str::FromStr},
+	std::str::FromStr,
 	url::Url,
 };
 
@@ -26,9 +25,6 @@ pub struct Args {
 	/// identify this host
 	#[arg(short = 'H', long)]
 	pub hostname: Option<String>,
-	/// MQTT client ID
-	#[arg(short, long)]
-	pub client_id: Option<String>,
 	/// remove discoverable entities from home-assistant on exit
 	#[arg(long)]
 	pub clean_up: bool,
@@ -67,26 +63,6 @@ pub struct UnitConfig {
 }
 
 impl Args {
-	pub fn hostname(&self) -> Cow<str> {
-		self
-			.hostname
-			.as_ref()
-			.map(|s| Cow::Borrowed(&s[..]))
-			.unwrap_or_else(|| {
-				hostname::get()
-					.map(|h| Cow::Owned(h.to_string_lossy().into()))
-					.unwrap_or(Cow::Borrowed("systemd"))
-			})
-	}
-
-	pub fn units(&self) -> HashMap<&str, Unit> {
-		self.units.iter().map(|u| (&u.unit[..], Unit::new(self, u))).collect()
-	}
-
-	pub fn use_mqtt(&self) -> bool {
-		self.mqtt_url.is_some()
-	}
-
 	pub fn mqtt_username(&self) -> Option<&str> {
 		self
 			.mqtt_username
@@ -102,37 +78,6 @@ impl Args {
 			.map(String::as_str)
 			.or_else(|| self.mqtt_url.as_ref().and_then(|u| u.password()))
 	}
-
-	pub fn mqtt_create(&self) -> mqtt::CreateOptionsBuilder {
-		mqtt::CreateOptionsBuilder::new()
-			.server_uri(self.mqtt_url.as_ref().map(|s| &s[..]).unwrap_or_default())
-			.client_id(self.client_id.as_ref().map(|s| &s[..]).unwrap_or("systemd"))
-			.persist_qos0(false)
-	}
-
-	pub fn mqtt_connect(&self) -> mqtt::ConnectOptionsBuilder {
-		let mut opts = mqtt::ConnectOptionsBuilder::new();
-		if let Some(name) = self.mqtt_username() {
-			opts.user_name(name);
-		}
-		if let Some(pw) = self.mqtt_password() {
-			opts.password(pw);
-		}
-		opts.clean_session(true);
-		opts
-	}
-
-	pub fn topic_root(&self) -> String {
-		format!("systemd/{}", self.hostname())
-	}
-
-	pub fn mqtt_pub_topic(&self) -> String {
-		format!("{}/status", self.topic_root())
-	}
-
-	pub fn mqtt_sub_topic(&self) -> String {
-		format!("{}/control", self.topic_root())
-	}
 }
 
 impl UnitConfig {
@@ -142,97 +87,6 @@ impl UnitConfig {
 
 	pub fn name(&self) -> &str {
 		self.name.as_ref().map(String::as_str).unwrap_or(self.short_name())
-	}
-
-	pub fn unique_id(&self, cli: &Args) -> String {
-		format!("{}_{}", cli.hass_device_id(), self.unit.replace(".", "_"))
-	}
-
-	pub fn default_object_id(&self, cli: &Args) -> String {
-		format!("{}_{}", cli.hostname(), self.short_name())
-	}
-
-	pub fn object_id(&self, cli: &Args) -> Cow<str> {
-		self
-			.object_id
-			.as_ref()
-			.map(|id| Cow::Borrowed(&id[..]))
-			.unwrap_or_else(|| self.default_object_id(cli).into())
-	}
-
-	pub fn mqtt_pub_topic(&self, cli: &Args) -> String {
-		format!("{}/{}/status", cli.topic_root(), self.unit)
-	}
-
-	pub fn mqtt_sub_topic(&self, cli: &Args) -> String {
-		format!("{}/{}/activate", cli.topic_root(), self.unit)
-	}
-
-	pub fn hass_platform(&self) -> &'static str {
-		if self.read_only {
-			"binary_sensor"
-		} else {
-			"switch"
-		}
-	}
-}
-
-#[derive(Debug)]
-pub struct Unit<'a> {
-	pub cli: &'a Args,
-	pub unit: &'a UnitConfig,
-	pub(crate) config: once_cell::unsync::OnceCell<Box<dyn crate::payload::Entity + 'a>>,
-}
-
-impl<'a> Unit<'a> {
-	pub fn new(cli: &'a Args, unit: &'a UnitConfig) -> Self {
-		Self {
-			cli,
-			unit,
-			config: Default::default(),
-		}
-	}
-
-	pub fn unit_name(&self) -> &'a String {
-		&self.unit.unit
-	}
-
-	pub fn unique_id(&self) -> String {
-		self.unit.unique_id(self.cli)
-	}
-
-	pub fn object_id(&self) -> Cow<'a, str> {
-		self.unit.object_id(self.cli)
-	}
-
-	pub fn name(&self) -> &'a str {
-		self.unit.name()
-	}
-
-	pub fn icon(&self) -> Option<&'a String> {
-		self.unit.icon.as_ref()
-	}
-
-	pub fn mqtt_pub_topic(&self) -> String {
-		self.unit.mqtt_pub_topic(self.cli)
-	}
-
-	pub fn mqtt_sub_topic(&self) -> String {
-		self.unit.mqtt_sub_topic(self.cli)
-	}
-}
-
-impl<'a> Deref for Unit<'a> {
-	type Target = UnitConfig;
-
-	fn deref(&self) -> &Self::Target {
-		self.unit
-	}
-}
-
-impl<'a> AsRef<(dyn crate::payload::Entity + 'a)> for Unit<'a> {
-	fn as_ref(&self) -> &(dyn crate::payload::Entity + 'a) {
-		self.hass_config()
 	}
 }
 
@@ -253,7 +107,7 @@ impl FromStr for UnitConfig {
 			unit: url
 				.path()
 				.strip_prefix("/unit/")
-				.ok_or_else(|| anyhow::format_err!("failed to parse unit specification: {}", s))?
+				.ok_or_else(|| Error::InvalidUnitSpec { spec: s.into() })?
 				.into(),
 			..config
 		})

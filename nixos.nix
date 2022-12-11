@@ -47,10 +47,6 @@ in {
       url = mkOption {
         type = nullOr str;
       };
-      clientId = mkOption {
-        type = str;
-        default = "systemd" + optionalString (cfg.hostName != null) "-${cfg.hostName}";
-      };
       username = mkOption {
         type = nullOr str;
         default = null;
@@ -81,7 +77,6 @@ in {
       };
       services.systemd2mqtt.extraArgs = cli.toGNUCommandLine { } {
         ${if cfg.mqtt.url != null then "mqtt-url" else null} = cfg.mqtt.url;
-        client-id = cfg.mqtt.clientId;
         ${if cfg.hostName != null then "hostname" else null} = cfg.hostName;
         unit = mapAttrsToList (_: unit: unit.arg) cfg.units;
         ${if cfg.mqtt.username != null then "mqtt-username" else null} = cfg.mqtt.username;

@@ -1,14 +1,53 @@
 use {
 	self::{cli::Args, core::Core},
-	anyhow::{format_err, Result},
 	clap::Parser,
-	futures::{pin_mut, select, FutureExt, StreamExt},
+	error_stack::{bail, IntoReport as _, ResultExt as _},
+	futures::{future, pin_mut, select, stream, FutureExt as _, StreamExt},
 	log::{debug, error, info, trace},
 	sd_notify::NotifyState,
 };
 
+type Result<T> = error_stack::Result<T, Error>;
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+	#[error("built without support for an MQTT backend")]
+	NoMqttBackend,
+	#[error("built without a supported MQTT backend")]
+	NoTls,
+	#[error("MQTT url is missing the host to connect to")]
+	UrlMissingHost,
+	#[error("failed to parse unit specification")]
+	InvalidUnitUrl(#[from] url::ParseError),
+	#[error("failed to parse unit arguments")]
+	InvalidUnitArgs(#[from] serde_urlencoded::de::Error),
+	#[error("failed to parse unit specification {spec:?}")]
+	InvalidUnitSpec { spec: String },
+	#[error("Systemd connection lost")]
+	ConnectionLostSystemd,
+	#[error("MQTT connection lost")]
+	ConnectionLostMqtt,
+	#[error("MQTT connection error")]
+	ConnectionError,
+	#[error("HassMqttClient error")]
+	HassMqtt,
+	#[error("Systemd error")]
+	Dbus(#[from] zbus_systemd::zbus::Error),
+	#[error("Systemd error")]
+	Systemd,
+	#[error("home-assistant entity configuration error")]
+	Entity,
+	#[error("internal serialization error, this is a bug!")]
+	Serialization,
+	#[error("internal consistency error, this is a bug!")]
+	InternalConsistency { unit_name: String },
+}
+
+#[macro_use]
+mod macros;
 mod cli;
 mod core;
+mod entities;
 mod payload;
 
 fn log_init() {
@@ -36,15 +75,13 @@ fn info_notify(msg: &str) {
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> crate::Result<()> {
 	log_init();
 
 	let cli = Args::parse();
 
 	info_notify("Connecting to system bus…");
-	let mut core = Core::new(&cli).await?;
-
-	let mut messages = core.mqtt.get_stream(25);
+	let core = Core::new(&cli).await?;
 
 	info_notify("Communicating with org.freedesktop.systemd1…");
 	let manager = core.sys_manager().await?;
@@ -60,7 +97,7 @@ async fn main() -> Result<()> {
 		_ = ctrlc.next() => return Ok(()),
 	};
 
-	let systemd_changes = futures::future::join_all(units.iter().map(|(_, (unit, proxy))| {
+	let systemd_changes = future::join_all(units.iter().map(|(_, (unit, proxy))| {
 		proxy
 			.receive_active_state_changed()
 			.map(move |c| c.map(move |c| (unit, proxy, c)))
@@ -73,27 +110,37 @@ async fn main() -> Result<()> {
 		_ = ctrlc.next() => return Ok(()),
 	};
 
-	let systemd_changes = futures::stream::select_all(systemd_changes);
+	let systemd_changes = stream::select_all(systemd_changes);
 	pin_mut!(systemd_changes);
 
 	info_notify("Connecting to MQTT broker…");
 	core.connect(&manager).await?;
+	let messages = core.connect(&manager).await?;
+	let mut messages = messages.unwrap_or(stream::empty().boxed()).fuse();
 
 	info_notify("Broadcasting unit entities and state…");
 	let initial_setup = async {
-		core.announce().await?;
+		core.announce().await.change_context(Error::ConnectionError)?;
 		let mut futures = Vec::new();
 		for (unit, proxy) in units.values() {
 			futures.push(core.inform_unit(unit, proxy));
 		}
-		futures::future::try_join_all(futures).await?;
-		Ok::<(), anyhow::Error>(())
+		future::try_join_all(futures).await?;
+		Ok::<(), error_stack::Report<Error>>(())
 	}
 	.fuse();
 	pin_mut!(initial_setup);
 
-	let mut new_jobs = manager.receive_job_new().await?;
-	let mut done_jobs = manager.receive_job_removed().await?;
+	let mut new_jobs = manager
+		.receive_job_new()
+		.await
+		.into_report()
+		.change_context(Error::Systemd)?;
+	let mut done_jobs = manager
+		.receive_job_removed()
+		.await
+		.into_report()
+		.change_context(Error::Systemd)?;
 
 	loop {
 		select! {
@@ -110,8 +157,8 @@ async fn main() -> Result<()> {
 			},
 			job_new = new_jobs.next() => {
 				let job_new = job_new
-					.ok_or_else(|| format_err!("lost systemd connection"))?;
-				let job_new = job_new.args()?;
+					.ok_or_else(|| Error::ConnectionLostSystemd)?;
+				let job_new = job_new.args().map_err(Error::from)?;
 				let unit_name = job_new.unit();
 				match units.get(&unit_name[..]) {
 					Some((unit, proxy)) => core.inform_unit(unit, proxy).await?,
@@ -120,8 +167,8 @@ async fn main() -> Result<()> {
 			},
 			job_removed = done_jobs.next() => {
 				let job_removed = job_removed
-					.ok_or_else(|| format_err!("lost systemd connection"))?;
-				let job_removed = job_removed.args()?;
+					.ok_or_else(|| Error::ConnectionLostSystemd)?;
+				let job_removed = job_removed.args().map_err(Error::from)?;
 				let unit_name = job_removed.unit();
 				match units.get(&unit_name[..]) {
 					Some((unit, proxy)) => core.inform_unit(unit, proxy).await?,
@@ -133,8 +180,8 @@ async fn main() -> Result<()> {
 			},
 			message = messages.next() => {
 				let message = match message {
-					Some(Some(m)) => m,
-					_ => return Err(format_err!("lost mqtt connection")),
+					Some(m) => m,
+					_ => bail!(Error::ConnectionLostMqtt),
 				};
 				debug!("received MQTT msg: {:#?}", message.topic());
 				if !core.handle_message(&manager, &message).await? {
@@ -147,5 +194,6 @@ async fn main() -> Result<()> {
 
 	info_notify("Cleaning up and disconnecting…");
 	notify(NotifyState::Stopping);
+	drop(messages);
 	core.disconnect().await
 }

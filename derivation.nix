@@ -5,28 +5,36 @@ in {
 , nix-gitignore
 , buildType ? "release"
 , openssl, pkg-config
-, paho-mqtt-c
+, paho-mqtt-c ? null
 , lib
 , cargoLock ? crate.cargoLock
 , source ? crate.src
 , crate ? self.lib.crate
-}: with lib; rustPlatform.buildRustPackage {
+, enablePaho ? paho-mqtt-c != null
+, enableTls ? true
+}: with lib; rustPlatform.buildRustPackage rec {
   pname = crate.name;
   inherit (crate) version;
 
   src = source;
   inherit cargoLock;
-  buildInputs = [
-    paho-mqtt-c
-    openssl
-  ];
-  nativeBuildInputs = [
-    pkg-config
-  ];
+  buildInputs =
+    optional enablePaho paho-mqtt-c
+  ++ optional (enablePaho && enableTls) openssl;
+  nativeBuildInputs =
+    optional enablePaho pkg-config;
   inherit buildType;
-  doCheck = false;
+
+  buildNoDefaultFeatures = true;
+  buildFeatures =
+    optional enablePaho "paho"
+  ++ optional enableTls "tls";
+
+  checkNoDefaultFeatures = true;
+  checkFeatures = remove "paho" buildFeatures;
 
   meta = {
     platforms = platforms.unix;
+    broken = versionOlder rustPlatform.rust.rustc.version "1.65";
   };
 }

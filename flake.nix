@@ -38,10 +38,13 @@
         pname = self.lib.crate.package.name;
         inherit (self.lib.crate) cargoLock version;
         inherit (systemd2mqtt) buildInputs nativeBuildInputs;
+        buildNoDefaultFeatures = systemd2mqtt.cargoBuildNoDefaultFeatures;
+        buildFeatures = systemd2mqtt.cargoBuildFeatures;
+        checkNoDefaultFeatures = systemd2mqtt.cargoCheckNoDefaultFeatures;
+        checkFeatures = systemd2mqtt.cargoCheckFeatures;
         src = source;
         buildType = "debug";
         meta.name = "cargo test";
-        meta.broken = true; # TODO: paho-mqtt doesn't like this :<
       };
     };
     devShells = {
@@ -51,6 +54,7 @@
       , rustTools ? [ ]
       , systemd2mqtt
       }: mkShell {
+        RUST_LOG = "systemd2mqtt=debug";
         allowBroken = true;
         inherit rustTools;
         inherit (systemd2mqtt) buildInputs;
