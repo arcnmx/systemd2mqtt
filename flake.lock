@@ -1,25 +1,5 @@
 {
   "nodes": {
-    "arc": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1670140114,
-        "narHash": "sha256-Z8lmLwKTf171WYH8EMko57VtobF8DgPtKL3ioXBlKP4=",
-        "owner": "arcnmx",
-        "repo": "nixexprs",
-        "rev": "be538181c1937c11d4ad4a0b4da203169f150be2",
-        "type": "github"
-      },
-      "original": {
-        "owner": "arcnmx",
-        "repo": "nixexprs",
-        "type": "github"
-      }
-    },
     "fl-config": {
       "locked": {
         "lastModified": 1653159448,
@@ -73,11 +53,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1670230006,
-        "narHash": "sha256-a6XPSCwCQQPdIedTXQKFXTkpgB7vm/iwFje8PEju5HM=",
+        "lastModified": 1670807610,
+        "narHash": "sha256-YdA0bdzjBVJ1e0MjnQh5VjMj7Up/4g/wKwgJQvop1h0=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "5b9b93b9be4234aaf9cd53e3247a927225095514",
+        "rev": "3cf892d8ba2940a6bfa37ac6e46c28f90e62ae37",
         "type": "github"
       },
       "original": {
@@ -87,7 +67,6 @@
     },
     "root": {
       "inputs": {
-        "arc": "arc",
         "flakelib": "flakelib",
         "nixpkgs": "nixpkgs",
         "rust": "rust"
@@ -100,11 +79,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1670556306,
-        "narHash": "sha256-UY9kQqYGHdcsjnzqZpYfZfcP1xkQHD9lHWyK1Z9iG0k=",
+        "lastModified": 1670892108,
+        "narHash": "sha256-CmfMxBxQNV4j56EgbCRIu++Npwl1xtwoYWoZPnhsSTo=",
         "owner": "arcnmx",
         "repo": "nixexprs-rust",
-        "rev": "02400bf0ee3d15f446e87ee16403144a42680fc2",
+        "rev": "e7caa9e978907aa7d4a6c244eb69bff1fc987d10",
         "type": "github"
       },
       "original": {
