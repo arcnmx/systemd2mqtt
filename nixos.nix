@@ -1,4 +1,4 @@
-{ pkgs, options, config, lib, inputs'systemd2mqtt, ... }: with lib; let
+{ pkgs, options, config, lib, utils, inputs'systemd2mqtt, ... }: with lib; let
   cfg = config.services.systemd2mqtt;
   StateDirectory = "systemd2mqtt";
   WorkingDirectory = "/var/lib/${StateDirectory}";
@@ -68,12 +68,23 @@ in {
       type = package;
       default = pkgs.systemd2mqtt or inputs'systemd2mqtt.package;
     };
+    extraArgs = mkOption {
+      type = listOf str;
+      default = [ ];
+    };
   };
   config = mkMerge [
     {
       _module.args.inputs'systemd2mqtt = {
         path = ./.;
         package = pkgs.callPackage ./derivation.nix { };
+      };
+      services.systemd2mqtt.extraArgs = cli.toGNUCommandLine { } {
+        ${if cfg.mqtt.url != null then "mqtt-url" else null} = cfg.mqtt.url;
+        client-id = cfg.mqtt.clientId;
+        ${if cfg.hostName != null then "hostname" else null} = cfg.hostName;
+        unit = mapAttrsToList (_: unit: unit.arg) cfg.units;
+        ${if cfg.mqtt.username != null then "mqtt-username" else null} = cfg.mqtt.username;
       };
     }
     (mkIf cfg.enable {
@@ -85,13 +96,7 @@ in {
           Type = "exec";
           inherit WorkingDirectory StateDirectory;
           User = mkDefault cfg.user;
-          ExecStart = singleton (getExe cfg.package + " " + cli.toGNUCommandLineShell { } {
-            ${if cfg.mqtt.url != null then "mqtt-url" else null} = cfg.mqtt.url;
-            client-id = cfg.mqtt.clientId;
-            ${if cfg.hostName != null then "hostname" else null} = cfg.hostName;
-            unit = mapAttrsToList (_: unit: unit.arg) cfg.units;
-            ${if cfg.mqtt.username != null then "mqtt-username" else null} = cfg.mqtt.username;
-          });
+          ExecStart = singleton "${getExe cfg.package} ${utils.escapeSystemdExecArgs cfg.extraArgs}";
           Restart = mkDefault "on-failure";
           Environment = [
             "RUST_LOG=${cfg.logLevel}"
