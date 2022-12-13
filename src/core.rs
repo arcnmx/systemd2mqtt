@@ -5,7 +5,7 @@ use {
 	},
 	anyhow::Result,
 	futures::TryFutureExt,
-	log::warn,
+	log::{error, warn},
 	paho_mqtt::{self as mqtt, Message, QOS_0 as QOS},
 	std::{borrow::Cow, collections::HashMap, time::Duration},
 	zbus_systemd::{
@@ -150,7 +150,7 @@ impl<'c> Core<'c> {
 			.into_iter()
 			.filter_map(|r| match r {
 				Err(e) => {
-					log::error!("Failed to set up unit: {:?}", e);
+					error!("Failed to set up unit: {:?}", e);
 					None
 				},
 				Ok((n, p)) => self.units.get(n).map(|u| (n, (u, p))),

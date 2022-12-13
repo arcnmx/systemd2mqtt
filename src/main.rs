@@ -3,16 +3,28 @@ use {
 	anyhow::{format_err, Result},
 	clap::Parser,
 	futures::{pin_mut, select, FutureExt, StreamExt},
-	log::info,
+	log::{debug, error, info},
 };
 
 mod cli;
 mod core;
 mod payload;
 
+fn log_init() {
+	use {
+		env_logger::{Builder, Env},
+		log::LevelFilter,
+	};
+
+	Builder::new()
+		.filter_level(LevelFilter::Warn)
+		.parse_env(Env::default())
+		.init()
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
-	env_logger::init();
+	log_init();
 
 	let cli = Args::parse();
 
@@ -68,7 +80,7 @@ async fn main() -> Result<()> {
 	loop {
 		select! {
 			res = initial_setup => if let Err(e) = res {
-				log::error!("Failed to perform initial setup: {:?}", e);
+				error!("Failed to perform initial setup: {:?}", e);
 			},
 			_ = ctrlc.next() => {
 				break
@@ -101,7 +113,7 @@ async fn main() -> Result<()> {
 					Some(Some(m)) => m,
 					_ => return Err(format_err!("lost mqtt connection")),
 				};
-				log::debug!("received MQTT msg: {:#?}", message.topic());
+				debug!("received MQTT msg: {:#?}", message.topic());
 				if !core.handle_message(&manager, &message).await? {
 					break
 				}
