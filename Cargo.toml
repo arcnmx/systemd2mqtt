@@ -30,3 +30,4 @@ ctrlc = { version = "3", features = ["termination"] }
 async-ctrlc = { version = "1", features = ["stream"] }
 paho-mqtt = { version = "0.11", default-features = false, features = ["ssl"] }
 zbus_systemd = { version = "0.0.8", features = ["systemd1"] }
+sd-notify = "0.4"

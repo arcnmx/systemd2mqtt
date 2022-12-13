@@ -3,7 +3,8 @@ use {
 	anyhow::{format_err, Result},
 	clap::Parser,
 	futures::{pin_mut, select, FutureExt, StreamExt},
-	log::{debug, error, info},
+	log::{debug, error, info, trace},
+	sd_notify::NotifyState,
 };
 
 mod cli;
@@ -22,16 +23,30 @@ fn log_init() {
 		.init()
 }
 
+fn notify(state: NotifyState) {
+	trace!("sd_notify({state:?})");
+	if let Err(e) = sd_notify::notify(false, &[state]) {
+		debug!("sd_notify failed: {e:?}");
+	}
+}
+
+fn info_notify(msg: &str) {
+	info!("{msg}");
+	notify(NotifyState::Status(msg));
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
 	log_init();
 
 	let cli = Args::parse();
 
+	info_notify("Connecting to system bus…");
 	let mut core = Core::new(&cli).await?;
 
 	let mut messages = core.mqtt.get_stream(25);
 
+	info_notify("Communicating with org.freedesktop.systemd1…");
 	let manager = core.sys_manager().await?;
 
 	let ctrlc = StreamExt::fuse(async_ctrlc::CtrlC::new().expect("ctrl+c"));
@@ -61,8 +76,10 @@ async fn main() -> Result<()> {
 	let systemd_changes = futures::stream::select_all(systemd_changes);
 	pin_mut!(systemd_changes);
 
+	info_notify("Connecting to MQTT broker…");
 	core.connect(&manager).await?;
 
+	info_notify("Broadcasting unit entities and state…");
 	let initial_setup = async {
 		core.announce().await?;
 		let mut futures = Vec::new();
@@ -80,8 +97,13 @@ async fn main() -> Result<()> {
 
 	loop {
 		select! {
-			res = initial_setup => if let Err(e) = res {
-				error!("Failed to perform initial setup: {:?}", e);
+			res = initial_setup => match res {
+				Ok(()) => {
+					info_notify("Started");
+					notify(NotifyState::Ready);
+				},
+				Err(e) =>
+					error!("Failed to perform initial setup: {:?}", e),
 			},
 			_ = ctrlc.next() => {
 				break
@@ -116,11 +138,14 @@ async fn main() -> Result<()> {
 				};
 				debug!("received MQTT msg: {:#?}", message.topic());
 				if !core.handle_message(&manager, &message).await? {
+					info!("shutdown requested via MQTT");
 					break
 				}
 			},
 		}
 	}
 
+	info_notify("Cleaning up and disconnecting…");
+	notify(NotifyState::Stopping);
 	core.disconnect().await
 }

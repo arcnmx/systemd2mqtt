@@ -93,7 +93,7 @@ in {
         wants = [ "network-online.target" ];
         after = [ "network-online.target" ];
         serviceConfig = {
-          Type = "exec";
+          Type = "notify";
           inherit WorkingDirectory StateDirectory;
           User = mkDefault cfg.user;
           ExecStart = singleton "${getExe cfg.package} ${utils.escapeSystemdExecArgs cfg.extraArgs}";
