@@ -1,12 +1,4 @@
-use {
-	crate::Error,
-	clap::Parser,
-	hass_mqtt_types::{DeviceClass, EntityCategory},
-	once_cell::sync::Lazy,
-	serde::{Deserialize, Serialize},
-	std::str::FromStr,
-	url::Url,
-};
+use {clap::Parser, systemd2mqtt::UnitConfig, url::Url};
 
 #[deny(missing_docs)]
 /// Expose systemd services over MQTT
@@ -39,31 +31,20 @@ pub struct Args {
 	pub mqtt_password: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct UnitConfig {
-	#[serde(default)]
-	pub unit: String,
-	#[serde(alias = "readonly", default)]
-	pub read_only: bool,
-	#[serde(alias = "invert", default)]
-	pub invert_state: bool,
-	#[serde(alias = "enabled", default = "default_true")]
-	pub enabled_by_default: bool,
-	#[serde(default = "default_entity_category")]
-	pub entity_category: EntityCategory,
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub icon: Option<String>,
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub name: Option<String>,
-	#[serde(alias = "entity_id", default, skip_serializing_if = "Option::is_none")]
-	pub object_id: Option<String>,
-	#[serde(default, skip_serializing_if = "DeviceClass::is_none")]
-	pub device_class: DeviceClass,
-}
+impl systemd2mqtt::Config for Args {
+	fn units<'c>(&'c self) -> Box<dyn Iterator<Item = &'c UnitConfig> + 'c> {
+		Box::new(self.units.iter()) as Box<_>
+	}
 
-impl Args {
-	pub fn mqtt_username(&self) -> Option<&str> {
+	fn hostname(&self) -> Option<&str> {
+		self.hostname.as_ref().map(|s| s.as_str())
+	}
+
+	fn mqtt_url(&self) -> Option<&Url> {
+		self.mqtt_url.as_ref()
+	}
+
+	fn mqtt_username(&self) -> Option<&str> {
 		self
 			.mqtt_username
 			.as_ref()
@@ -71,71 +52,21 @@ impl Args {
 			.or_else(|| self.mqtt_url.as_ref().and_then(|u| opt_str(u.username())))
 	}
 
-	pub fn mqtt_password(&self) -> Option<&str> {
+	fn mqtt_password(&self) -> Option<&str> {
 		self
 			.mqtt_password
 			.as_ref()
 			.map(String::as_str)
 			.or_else(|| self.mqtt_url.as_ref().and_then(|u| u.password()))
 	}
-}
 
-impl UnitConfig {
-	pub fn short_name(&self) -> &str {
-		self.unit.split('.').next().unwrap()
+	fn discovery_prefix(&self) -> &str {
+		self.discovery_prefix.as_ref()
 	}
 
-	pub fn name(&self) -> &str {
-		self.name.as_ref().map(String::as_str).unwrap_or(self.short_name())
+	fn clean_up(&self) -> bool {
+		self.clean_up
 	}
-}
-
-impl FromStr for UnitConfig {
-	type Err = Error;
-
-	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		static BASE_URL: Lazy<Url> = Lazy::new(|| Url::parse("systemd:/unit/").expect("static url can't fail"));
-
-		let url = Url::options().base_url(Some(&BASE_URL)).parse(s)?;
-
-		let config = match url.query() {
-			Some(query) => serde_urlencoded::de::from_str(&query),
-			None => Ok(Self::default()),
-		}?;
-
-		Ok(Self {
-			unit: url
-				.path()
-				.strip_prefix("/unit/")
-				.ok_or_else(|| Error::InvalidUnitSpec { spec: s.into() })?
-				.into(),
-			..config
-		})
-	}
-}
-
-impl Default for UnitConfig {
-	fn default() -> Self {
-		Self {
-			unit: Default::default(),
-			icon: Default::default(),
-			name: Default::default(),
-			object_id: Default::default(),
-			device_class: Default::default(),
-			read_only: Default::default(),
-			invert_state: Default::default(),
-			enabled_by_default: true,
-			entity_category: default_entity_category(),
-		}
-	}
-}
-
-fn default_true() -> bool {
-	true
-}
-
-fn default_entity_category() -> EntityCategory {
-	EntityCategory::Config
 }
 
 fn opt_str(s: &str) -> Option<&str> {

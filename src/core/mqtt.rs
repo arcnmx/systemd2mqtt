@@ -199,7 +199,7 @@ impl<'c> Core<'c> {
 	}
 
 	fn mqtt_create(&self) -> crate::Result<Option<HassMqttOptions>> {
-		let url = match self.cli.mqtt_url.as_ref() {
+		let url = match self.cli.mqtt_url() {
 			Some(url) => url,
 			None => return Ok(None),
 		};
@@ -208,7 +208,7 @@ impl<'c> Core<'c> {
 		let builder = HassMqttOptions::new(host, "systemd2mqtt")
 			.port(url.port().unwrap_or(1883))
 			.node_id(self.hostname())
-			.discovery_prefix(&self.cli.discovery_prefix)
+			.discovery_prefix(self.cli.discovery_prefix())
 			.private_prefix("systemd");
 
 		let tls = url.scheme() == "mqtts" || url.scheme() == "ssl";
@@ -231,7 +231,7 @@ impl<'c> Core<'c> {
 		let mqtt = self.mqtt.lock().await.take();
 		if let Some(mqtt) = mqtt {
 			let configs = FuturesUnordered::new();
-			if self.cli.clean_up {
+			if self.cli.clean_up() {
 				for topics in mqtt.units.values() {
 					configs.push(topics.clone().publish_config(Vec::new().into(), true, QOS));
 				}
@@ -251,7 +251,7 @@ impl<'c> Core<'c> {
 			let offline_status = mqtt
 				.diag_button
 				.clone()
-				.publish_state(&self.mqtt_will_payload(), !self.cli.clean_up, QOS);
+				.publish_state(&self.mqtt_will_payload(), !self.cli.clean_up(), QOS);
 			let futures = stream::select(configs, stream::once(offline_status))
 				.filter_map(|res| future::ready(res.err()))
 				.enumerate();
@@ -350,7 +350,7 @@ impl<'a> Unit<'a> {
 		ManuallyDrop::new(weak)
 	}
 
-	pub fn topics(&self) -> Option<Arc<EntityTopics>> {
+	pub(crate) fn topics(&self) -> Option<Arc<EntityTopics>> {
 		self.mqtt_weak().upgrade()
 	}
 
@@ -359,11 +359,11 @@ impl<'a> Unit<'a> {
 		unsafe { Weak::from_raw(prev) }
 	}
 
-	pub fn set_topics(&self, mqtt: &Arc<EntityTopics>) -> Weak<EntityTopics> {
+	pub(crate) fn set_topics(&self, mqtt: &Arc<EntityTopics>) -> Weak<EntityTopics> {
 		self.set_topics_weak(Arc::downgrade(mqtt))
 	}
 
-	pub fn drop_topics(&self) {
+	pub(crate) fn drop_topics(&self) {
 		drop(self.set_topics_weak(Weak::new()));
 	}
 }

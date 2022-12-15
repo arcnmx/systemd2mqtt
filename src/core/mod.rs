@@ -1,11 +1,10 @@
 pub(crate) use self::mqtt::{EntityTopics, MqttConnection, MqttTopic, QOS};
 use {
 	crate::{
-		cli::{Args, UnitConfig},
 		payload::{UnitCommand, UnitStatus},
-		Error, Result,
+		Config, Error, Result, UnitConfig,
 	},
-	error_stack::IntoReport as _,
+	error_stack::{IntoReport as _, ResultExt as _},
 	futures::{lock::Mutex, stream::BoxStream, TryFutureExt as _},
 	hass_mqtt_client::Message,
 	log::{debug, error, warn},
@@ -26,27 +25,33 @@ mod mqtt;
 
 static HOSTNAME: OnceCell<Option<String>> = OnceCell::new();
 
-pub(crate) struct Core<'c> {
-	cli: &'c Args,
+pub struct Core<'c> {
+	cli: &'c dyn Config,
 	units: HashMap<&'c str, Unit<'c>>,
 	mqtt: Mutex<Option<MqttConnection<'c>>>,
 	sys: zbus::Connection,
 }
 
 impl<'c> Core<'c> {
-	pub async fn new(cli: &'c Args) -> Result<Core<'c>> {
+	pub async fn new(cli: &'c dyn Config) -> Result<Core<'c>> {
 		Ok(Core {
-			sys: zbus::Connection::system().await.map_err(Error::from)?,
+			sys: zbus::Connection::system()
+				.await
+				.into_report()
+				.change_context(Error::Dbus)?,
 			mqtt: Default::default(),
-			units: cli.populate_core_units(),
+			units: cli.units().map(|u| (&u.unit[..], Unit::new(u))).collect(),
 			cli,
 		})
 	}
 
 	pub async fn sys_manager(&self) -> Result<ManagerProxy> {
-		let manager = ManagerProxy::new(&self.sys).await.map_err(Error::from).into_report()?;
+		let manager = ManagerProxy::new(&self.sys)
+			.await
+			.into_report()
+			.change_context(Error::Dbus)?;
 
-		if self.cli.hostname.is_none() {
+		if self.cli.hostname().is_none() {
 			let hostname = HostnamedProxy::new(&self.sys)
 				.and_then(|hostnamed| async move { hostnamed.hostname().await })
 				.await;
@@ -64,7 +69,7 @@ impl<'c> Core<'c> {
 	}
 
 	pub fn hostname_(&self) -> &'c str {
-		if let Some(hostname) = self.cli.hostname.as_ref() {
+		if let Some(hostname) = self.cli.hostname() {
 			return hostname
 		}
 		HOSTNAME.wait().as_ref().map(|s| &s[..]).unwrap_or("systemd")
@@ -76,7 +81,7 @@ impl<'c> Core<'c> {
 	}
 
 	pub async fn connect(&self, manager: &ManagerProxy<'_>) -> Result<Option<BoxStream<Message>>> {
-		manager.subscribe().await.map_err(Error::from)?;
+		manager.subscribe().await.into_report().change_context(Error::Dbus)?;
 
 		self.connect_mqtt().await
 	}
@@ -84,11 +89,19 @@ impl<'c> Core<'c> {
 	pub async fn unit_proxy(&self, manager: &ManagerProxy<'_>, unit: &Unit<'c>) -> Result<UnitProxy> {
 		Ok(
 			UnitProxy::builder(&self.sys)
-				.path(manager.load_unit(unit.unit_name().into()).await.map_err(Error::from)?)
-				.map_err(Error::from)?
+				.path(
+					manager
+						.load_unit(unit.unit_name().into())
+						.await
+						.into_report()
+						.change_context(Error::Dbus)?,
+				)
+				.into_report()
+				.change_context(Error::Dbus)?
 				.build()
 				.await
-				.map_err(Error::from)?,
+				.into_report()
+				.change_context(Error::Dbus)?,
 		)
 	}
 
@@ -118,12 +131,28 @@ impl<'c> Core<'c> {
 
 	pub async fn inform_unit(&self, unit: &Unit<'c>, unit_proxy: &UnitProxy<'_>) -> Result<()> {
 		let payload = UnitStatus {
-			load_state: unit_proxy.load_state().await.map_err(Error::from)?,
-			active_state: unit_proxy.active_state().await.map_err(Error::from)?,
-			id: unit_proxy.id().await.map_err(Error::from)?,
-			invocation_id: unit_proxy.invocation_id().await.map_err(Error::from)?,
-			description: unit_proxy.description().await.map_err(Error::from)?,
-			transient: unit_proxy.transient().await.map_err(Error::from)?,
+			load_state: unit_proxy
+				.load_state()
+				.await
+				.into_report()
+				.change_context(Error::Dbus)?,
+			active_state: unit_proxy
+				.active_state()
+				.await
+				.into_report()
+				.change_context(Error::Dbus)?,
+			id: unit_proxy.id().await.into_report().change_context(Error::Dbus)?,
+			invocation_id: unit_proxy
+				.invocation_id()
+				.await
+				.into_report()
+				.change_context(Error::Dbus)?,
+			description: unit_proxy
+				.description()
+				.await
+				.into_report()
+				.change_context(Error::Dbus)?,
+			transient: unit_proxy.transient().await.into_report().change_context(Error::Dbus)?,
 		};
 
 		let res = if let Some(_) = &*self.mqtt.lock().await {
@@ -145,13 +174,25 @@ impl<'c> Core<'c> {
 		let mode = "fail".into();
 		match serde_json::from_slice::<UnitCommand>(payload) {
 			Ok(UnitCommand::Start) => {
-				manager.start_unit(unit.into(), mode).await.map_err(Error::from)?;
+				manager
+					.start_unit(unit.into(), mode)
+					.await
+					.into_report()
+					.change_context(Error::Dbus)?;
 			},
 			Ok(UnitCommand::Stop) => {
-				manager.stop_unit(unit.into(), mode).await.map_err(Error::from)?;
+				manager
+					.stop_unit(unit.into(), mode)
+					.await
+					.into_report()
+					.change_context(Error::Dbus)?;
 			},
 			Ok(UnitCommand::Restart) => {
-				manager.restart_unit(unit.into(), mode).await.map_err(Error::from)?;
+				manager
+					.restart_unit(unit.into(), mode)
+					.await
+					.into_report()
+					.change_context(Error::Dbus)?;
 			},
 			Err(e) => {
 				warn!("unsupported unit command: {:?}", e)
@@ -162,9 +203,9 @@ impl<'c> Core<'c> {
 }
 
 #[derive(Debug)]
-pub(crate) struct Unit<'a> {
+pub struct Unit<'a> {
 	pub unit: &'a UnitConfig,
-	pub mqtt: AtomicPtr<EntityTopics>,
+	mqtt: AtomicPtr<EntityTopics>,
 }
 
 impl<'a> Unit<'a> {
@@ -191,11 +232,5 @@ impl<'a> Deref for Unit<'a> {
 
 	fn deref(&self) -> &Self::Target {
 		self.unit
-	}
-}
-
-impl Args {
-	fn populate_core_units(&self) -> HashMap<&str, Unit> {
-		self.units.iter().map(|u| (&u.unit[..], Unit::new(u))).collect()
 	}
 }

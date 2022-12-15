@@ -13,23 +13,25 @@ readme = "README.adoc"
 license = "MIT"
 
 [dependencies]
-tokio = { version = "1", default-features = false, features = ["process", "rt-multi-thread", "time", "macros"] }
 thiserror = "1"
 error-stack = "0.2"
 futures = { version = "0.3", features = ["thread-pool"] }
-clap = { version = "4", features = ["derive", "env"] }
-env_logger = "0.10"
 log = "0.4"
 serde_json = "1"
 serde_urlencoded = "0.7"
 url = "2"
 once_cell = "1"
 serde = { version = "1", features = ["derive"] }
+zbus_systemd = { version = "0.0.8", features = ["systemd1", "hostname1"] }
+hass-mqtt-types = { version = "0.2", git = "https://github.com/arcnmx/hass-rs", branch = "client" }
+
+# bin dependencies
+tokio = { version = "1", default-features = false, features = ["process", "rt-multi-thread", "time", "macros"] }
+clap = { version = "4", features = ["derive", "env"] }
+env_logger = "0.10"
+sd-notify = "0.4"
 ctrlc = { version = "3", features = ["termination"] }
 async-ctrlc = { version = "1", features = ["stream"] }
-zbus_systemd = { version = "0.0.8", features = ["systemd1", "hostname1"] }
-sd-notify = "0.4"
-hass-mqtt-types = { version = "0.2", git = "https://github.com/arcnmx/hass-rs", branch = "client" }
 
 [dependencies.hass-mqtt-client]
 version = "0"

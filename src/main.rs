@@ -1,54 +1,14 @@
 use {
-	self::{cli::Args, core::Core},
+	self::cli::Args,
 	clap::Parser,
 	error_stack::{bail, IntoReport as _, ResultExt as _},
 	futures::{future, pin_mut, select, stream, FutureExt as _, StreamExt},
 	log::{debug, error, info, trace},
 	sd_notify::NotifyState,
+	systemd2mqtt::{Core, Error, Result},
 };
 
-type Result<T> = error_stack::Result<T, Error>;
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-	#[error("built without support for an MQTT backend")]
-	NoMqttBackend,
-	#[error("built without a supported MQTT backend")]
-	NoTls,
-	#[error("MQTT url is missing the host to connect to")]
-	UrlMissingHost,
-	#[error("failed to parse unit specification")]
-	InvalidUnitUrl(#[from] url::ParseError),
-	#[error("failed to parse unit arguments")]
-	InvalidUnitArgs(#[from] serde_urlencoded::de::Error),
-	#[error("failed to parse unit specification {spec:?}")]
-	InvalidUnitSpec { spec: String },
-	#[error("Systemd connection lost")]
-	ConnectionLostSystemd,
-	#[error("MQTT connection lost")]
-	ConnectionLostMqtt,
-	#[error("MQTT connection error")]
-	ConnectionError,
-	#[error("HassMqttClient error")]
-	HassMqtt,
-	#[error("Systemd error")]
-	Dbus(#[from] zbus_systemd::zbus::Error),
-	#[error("Systemd error")]
-	Systemd,
-	#[error("home-assistant entity configuration error")]
-	Entity,
-	#[error("internal serialization error, this is a bug!")]
-	Serialization,
-	#[error("internal consistency error, this is a bug!")]
-	InternalConsistency { unit_name: String },
-}
-
-#[macro_use]
-mod macros;
 mod cli;
-mod core;
-mod entities;
-mod payload;
 
 fn log_init() {
 	use {
@@ -158,7 +118,7 @@ async fn main() -> crate::Result<()> {
 			job_new = new_jobs.next() => {
 				let job_new = job_new
 					.ok_or_else(|| Error::ConnectionLostSystemd)?;
-				let job_new = job_new.args().map_err(Error::from)?;
+				let job_new = job_new.args().into_report().change_context(Error::Dbus)?;
 				let unit_name = job_new.unit();
 				match units.get(&unit_name[..]) {
 					Some((unit, proxy)) => core.inform_unit(unit, proxy).await?,
@@ -168,7 +128,7 @@ async fn main() -> crate::Result<()> {
 			job_removed = done_jobs.next() => {
 				let job_removed = job_removed
 					.ok_or_else(|| Error::ConnectionLostSystemd)?;
-				let job_removed = job_removed.args().map_err(Error::from)?;
+				let job_removed = job_removed.args().into_report().change_context(Error::Dbus)?;
 				let unit_name = job_removed.unit();
 				match units.get(&unit_name[..]) {
 					Some((unit, proxy)) => core.inform_unit(unit, proxy).await?,

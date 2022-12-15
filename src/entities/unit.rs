@@ -1,11 +1,11 @@
 use {
 	crate::{
-		cli::UnitConfig,
 		core::{EntityTopics, MqttTopic},
 		entities::{
 			ConfiguredDevice, ConfiguredEntity, EntityContext, EntityDocument, EntityIds, EntityObject, StaticEntity as _,
 		},
 		payload::{SerializeExt as _, UnitCommand, OFF, ON},
+		UnitConfig,
 	},
 	hass_mqtt_types::{Availability, BinarySensor, DeviceClass, EntityCategory, Switch, UniqueId},
 	serde::{Serialize, Serializer},
