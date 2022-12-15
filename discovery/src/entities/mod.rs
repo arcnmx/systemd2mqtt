@@ -1,18 +1,16 @@
-pub(crate) use self::{
+pub use self::{
 	diag::DiagButton,
 	unit::{ConfiguredUnit, UnitSensor, UnitSwitch},
 };
 use {
-	crate::{
-		core::{EntityTopics, MqttTopic},
-		payload::{OFF, ON, PKG_NAME},
-	},
+	crate::{EntityTopics, MqttTopic},
 	error_stack::{FutureExt as _, IntoReport as _},
 	futures::{Future, FutureExt as _},
 	hass_mqtt_client::{EntityTopic, HassMqttClient},
 	hass_mqtt_types::{Availability, Device, UniqueId},
 	serde::{Serialize, Serializer},
 	std::{borrow::Cow, fmt::Display, pin::Pin},
+	systemd2mqtt_payload::{OFF, ON, PKG_NAME},
 };
 
 mod diag;
@@ -36,7 +34,7 @@ pub trait EntityDocument: EntityObject {
 	fn to_document<'o>(&'o self) -> Self::Document<'o>;
 }
 
-pub(crate) trait ConfiguredEntity<'i>: EntityDocument + Sized {
+pub trait ConfiguredEntity<'i>: EntityDocument + Sized {
 	type Args<'a>: Clone
 	where
 		Self: 'a;
@@ -119,7 +117,7 @@ impl_entity! { @wrapper
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct EntityContext<'i> {
+pub struct EntityContext<'i> {
 	pub device: ConfiguredDevice<'i>,
 	pub availability: ConfiguredAvailability<'i>,
 }
@@ -152,14 +150,14 @@ impl<'i> EntityContext<'i> {
 	}
 }
 
-pub(crate) struct EntityIds<'i> {
+pub struct EntityIds<'i> {
 	pub unique_id: Cow<'i, str>,
 	pub object_id: Cow<'i, str>,
 	pub name: Cow<'i, str>,
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct ConfiguredDevice<'i> {
+pub struct ConfiguredDevice<'i> {
 	pub hostname: Cow<'i, str>,
 	pub identifiers: [Cow<'static, str>; 1],
 }
@@ -212,7 +210,7 @@ impl<'i, T: Into<Cow<'i, str>>> From<T> for ConfiguredDevice<'i> {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct ConfiguredAvailability<'i> {
+pub struct ConfiguredAvailability<'i> {
 	pub status_topic: MqttTopic,
 	pub unit_name: Option<Cow<'i, str>>,
 }

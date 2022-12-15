@@ -1,9 +1,5 @@
-pub(crate) use self::mqtt::{EntityTopics, MqttConnection, MqttTopic, QOS};
+pub use self::mqtt::MqttConnection;
 use {
-	crate::{
-		payload::{UnitCommand, UnitStatus},
-		Config, Error, Result, UnitConfig,
-	},
 	error_stack::{IntoReport as _, ResultExt as _},
 	futures::{lock::Mutex, stream::BoxStream, TryFutureExt as _},
 	hass_mqtt_client::Message,
@@ -14,6 +10,8 @@ use {
 		ops::Deref,
 		sync::{atomic::AtomicPtr, Weak},
 	},
+	systemd2mqtt_discovery::{EntityTopics, QOS},
+	systemd2mqtt_payload::{Config, Error, Result, UnitCommand, UnitConfig, UnitStatus},
 	zbus_systemd::{
 		hostname1::HostnamedProxy,
 		systemd1::{ManagerProxy, UnitProxy},
@@ -130,30 +128,19 @@ impl<'c> Core<'c> {
 	}
 
 	pub async fn inform_unit(&self, unit: &Unit<'c>, unit_proxy: &UnitProxy<'_>) -> Result<()> {
-		let payload = UnitStatus {
-			load_state: unit_proxy
-				.load_state()
-				.await
-				.into_report()
-				.change_context(Error::Dbus)?,
-			active_state: unit_proxy
-				.active_state()
-				.await
-				.into_report()
-				.change_context(Error::Dbus)?,
-			id: unit_proxy.id().await.into_report().change_context(Error::Dbus)?,
-			invocation_id: unit_proxy
-				.invocation_id()
-				.await
-				.into_report()
-				.change_context(Error::Dbus)?,
-			description: unit_proxy
-				.description()
-				.await
-				.into_report()
-				.change_context(Error::Dbus)?,
-			transient: unit_proxy.transient().await.into_report().change_context(Error::Dbus)?,
-		};
+		let payload = async {
+			Ok::<_, zbus_systemd::zbus::Error>(UnitStatus {
+				load_state: unit_proxy.load_state().await?,
+				active_state: unit_proxy.active_state().await?,
+				id: unit_proxy.id().await?,
+				invocation_id: unit_proxy.invocation_id().await?,
+				description: unit_proxy.description().await?,
+				transient: unit_proxy.transient().await?,
+			})
+		}
+		.await
+		.into_report()
+		.change_context(Error::Dbus)?;
 
 		let res = if let Some(_) = &*self.mqtt.lock().await {
 			let topics = unit

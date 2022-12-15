@@ -1552,18 +1552,58 @@ dependencies = [
  "env_logger",
  "error-stack",
  "futures",
+ "log",
+ "sd-notify",
+ "systemd2mqtt-core",
+ "systemd2mqtt-payload",
+ "tokio",
+ "url",
+]
+
+[[package]]
+name = "systemd2mqtt-core"
+version = "0.1.0"
+dependencies = [
+ "error-stack",
+ "futures",
  "hass-mqtt-client",
  "hass-mqtt-types",
  "log",
  "once_cell",
- "sd-notify",
+ "serde",
+ "serde_json",
+ "serde_urlencoded",
+ "systemd2mqtt-discovery",
+ "systemd2mqtt-payload",
+ "thiserror",
+ "url",
+ "zbus_systemd",
+]
+
+[[package]]
+name = "systemd2mqtt-discovery"
+version = "0.1.0"
+dependencies = [
+ "error-stack",
+ "futures",
+ "hass-mqtt-client",
+ "hass-mqtt-types",
+ "serde",
+ "systemd2mqtt-payload",
+]
+
+[[package]]
+name = "systemd2mqtt-payload"
+version = "0.1.0"
+dependencies = [
+ "error-stack",
+ "hass-mqtt-types",
+ "once_cell",
  "serde",
  "serde_json",
  "serde_urlencoded",
  "thiserror",
- "tokio",
  "url",
- "zbus_systemd",
 ]
 
 [[package]]

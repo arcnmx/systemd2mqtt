@@ -5,7 +5,8 @@ use {
 	futures::{future, pin_mut, select, stream, FutureExt as _, StreamExt},
 	log::{debug, error, info, trace},
 	sd_notify::NotifyState,
-	systemd2mqtt::{Core, Error, Result},
+	systemd2mqtt_core::Core,
+	systemd2mqtt_payload::{Error, Result},
 };
 
 mod cli;

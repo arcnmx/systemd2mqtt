@@ -1,15 +1,15 @@
 use {
 	crate::{
-		core::{EntityTopics, MqttTopic},
 		entities::{ConfiguredDevice, ConfiguredEntity, EntityContext, EntityIds, StaticEntity as _},
-		payload::{SerializeExt as _, ServiceCommand, PKG_NAME},
+		EntityTopics, MqttTopic,
 	},
 	hass_mqtt_types::{Availability, Button, EntityCategory},
 	std::{borrow::Cow, slice},
+	systemd2mqtt_payload::{SerializeExt as _, ServiceCommand, PKG_NAME},
 };
 
 #[derive(Debug, Clone)]
-pub(crate) struct DiagButton<'i> {
+pub struct DiagButton<'i> {
 	pub device: ConfiguredDevice<'i>,
 	pub command_topic: MqttTopic,
 	pub status_topic: MqttTopic,

@@ -1,4 +1,8 @@
-use {clap::Parser, systemd2mqtt::UnitConfig, url::Url};
+use {
+	clap::Parser,
+	systemd2mqtt_payload::{Config, UnitConfig},
+	url::Url,
+};
 
 #[deny(missing_docs)]
 /// Expose systemd services over MQTT
@@ -31,7 +35,7 @@ pub struct Args {
 	pub mqtt_password: Option<String>,
 }
 
-impl systemd2mqtt::Config for Args {
+impl Config for Args {
 	fn units<'c>(&'c self) -> Box<dyn Iterator<Item = &'c UnitConfig> + 'c> {
 		Box::new(self.units.iter()) as Box<_>
 	}

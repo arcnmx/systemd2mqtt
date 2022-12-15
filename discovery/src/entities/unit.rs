@@ -1,19 +1,18 @@
 use {
 	crate::{
-		core::{EntityTopics, MqttTopic},
 		entities::{
 			ConfiguredDevice, ConfiguredEntity, EntityContext, EntityDocument, EntityIds, EntityObject, StaticEntity as _,
 		},
-		payload::{SerializeExt as _, UnitCommand, OFF, ON},
-		UnitConfig,
+		EntityTopics, MqttTopic,
 	},
 	hass_mqtt_types::{Availability, BinarySensor, DeviceClass, EntityCategory, Switch, UniqueId},
 	serde::{Serialize, Serializer},
 	std::{borrow::Cow, slice},
+	systemd2mqtt_payload::{SerializeExt as _, UnitCommand, UnitConfig, OFF, ON},
 };
 
 #[derive(Debug, Clone)]
-pub(crate) struct UnitSwitch<'i> {
+pub struct UnitSwitch<'i> {
 	pub device: ConfiguredDevice<'i>,
 	pub command_topic: MqttTopic,
 	pub state_topic: MqttTopic,
@@ -142,7 +141,7 @@ impl<'i> UnitSwitch<'i> {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct UnitSensor<'i> {
+pub struct UnitSensor<'i> {
 	pub device: ConfiguredDevice<'i>,
 	pub state_topic: MqttTopic,
 	pub availability: Availability<'i>,
@@ -255,7 +254,7 @@ impl<'i> UnitSensor<'i> {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) enum ConfiguredUnit<'i> {
+pub enum ConfiguredUnit<'i> {
 	Switch(UnitSwitch<'i>),
 	Sensor(UnitSensor<'i>),
 }
