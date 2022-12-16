@@ -5,11 +5,16 @@ pub use self::{
 use {
 	crate::{EntityTopics, MqttTopic},
 	error_stack::{FutureExt as _, IntoReport as _},
-	futures::{Future, FutureExt as _},
+	futures::FutureExt as _,
 	hass_mqtt_client::{EntityTopic, HassMqttClient},
 	hass_mqtt_types::{Availability, Device, UniqueId},
 	serde::{Serialize, Serializer},
-	std::{borrow::Cow, fmt::Display, pin::Pin},
+	std::{
+		borrow::Cow,
+		fmt::Display,
+		future::{Future, IntoFuture as _},
+		pin::Pin,
+	},
 	systemd2mqtt_payload::{OFF, ON, PKG_NAME},
 };
 
@@ -94,6 +99,7 @@ pub trait ConfiguredEntity<'i>: EntityDocument + Sized {
 				MqttTopic::from(Self::new_domain(context, args)),
 				MqttTopic::from(Self::new_short_id(context, args)),
 			)
+			.into_future()
 			.map(|res| res.into_report())
 			.change_context(crate::Error::Entity)
 			.boxed()

@@ -11,6 +11,7 @@ use {
 	std::{
 		borrow::Cow,
 		collections::HashMap,
+		future::IntoFuture as _,
 		mem::ManuallyDrop,
 		sync::{atomic::Ordering, Arc, Weak},
 	},
@@ -105,13 +106,20 @@ impl<'c> Core<'c> {
 			}
 		}
 
+		let map_infallible = |e: std::convert::Infallible| -> Error { match e {} };
+
 		if let Some(options) = self.mqtt_create()? {
 			let client = try_build(options).await?;
 			let entity_context = EntityContext::with_hostname(self.hostname());
 
 			let config_topic = DiagButton::entity_topic(&client, &entity_context, &()).await?;
-			let state_topic = config_topic.state_topic("status");
-			let set = config_topic.command_topic("set", QOS);
+			let state_topic = config_topic.state_topic()
+				.name("status")
+				.into_future().await.map_err(map_infallible)?;
+			let set = config_topic.command_topic()
+				.qos(QOS)
+				.name("set")
+				.into_future();
 			/* TODO: let activate = config_topic.command_topic("+/activate", QOS);
 			let (set_command, activate) = future::try_join(set, activate)
 				.await.change_context(Error::Entity)?;*/
@@ -133,12 +141,16 @@ impl<'c> Core<'c> {
 					let unit_client = &client;
 					async move {
 						let config_topic = ConfiguredUnit::entity_topic(unit_client, &unit_context, &unit.unit).await?;
-						let state_topic = config_topic.state_topic("status");
+						let state_topic = config_topic.state_topic()
+							.name("status")
+							.into_future().await.map_err(map_infallible)?;
 						let command = match unit.read_only {
 							true => None,
 							false => Some(
 								config_topic
-									.command_topic("activate", QOS)
+									.command_topic()
+									.qos(QOS)
+									.name("activate")
 									.await
 									.into_report()
 									.change_context(Error::Entity)?,
