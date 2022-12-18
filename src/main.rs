@@ -33,8 +33,6 @@ async fn main() -> Result<()> {
 	let mut messages = core.mqtt.get_stream(25);
 
 	let manager = core.sys_manager().await?;
-	let mut new_jobs = manager.receive_job_new().await?;
-	let mut done_jobs = manager.receive_job_removed().await?;
 
 	let ctrlc = StreamExt::fuse(async_ctrlc::CtrlC::new().expect("ctrl+c"));
 	pin_mut!(ctrlc);
@@ -76,6 +74,9 @@ async fn main() -> Result<()> {
 	}
 	.fuse();
 	pin_mut!(initial_setup);
+
+	let mut new_jobs = manager.receive_job_new().await?;
+	let mut done_jobs = manager.receive_job_removed().await?;
 
 	loop {
 		select! {
