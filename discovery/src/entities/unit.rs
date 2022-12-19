@@ -29,12 +29,9 @@ pub struct UnitSwitch<'i> {
 }
 
 impl<'i> ConfiguredEntity<'i> for UnitSwitch<'i> {
-	type Args<'a> = &'i UnitConfig where Self: 'a;
+	type Args = &'i UnitConfig;
 
-	fn new_unique_id<'a>(context: &EntityContext<'i>, unit: &Self::Args<'a>) -> Cow<'i, str>
-	where
-		Self: 'a,
-	{
+	fn new_unique_id(context: &EntityContext<'i>, unit: &Self::Args) -> Cow<'i, str> {
 		format!(
 			"{}_{}",
 			ConfiguredDevice::device_id(context.hostname()),
@@ -43,41 +40,26 @@ impl<'i> ConfiguredEntity<'i> for UnitSwitch<'i> {
 		.into()
 	}
 
-	fn new_short_id<'a>(_context: &EntityContext<'i>, unit: &Self::Args<'a>) -> Cow<'i, str>
-	where
-		Self: 'a,
-	{
+	fn new_short_id(_context: &EntityContext<'i>, unit: &Self::Args) -> Cow<'i, str> {
 		unit.short_name().into()
 	}
 
-	fn new_object_id<'a>(context: &EntityContext<'i>, unit: &Self::Args<'a>) -> Cow<'i, str>
-	where
-		Self: 'a,
-	{
+	fn new_object_id(context: &EntityContext<'i>, unit: &Self::Args) -> Cow<'i, str> {
 		let object_id = unit.object_id.as_ref();
 		object_id
 			.map(|id| Cow::Borrowed(&id[..]))
 			.unwrap_or_else(|| Self::format_object_id(context, &Self::new_short_id(context, unit)))
 	}
 
-	fn new_name<'a>(_context: &EntityContext<'i>, unit: &Self::Args<'a>) -> Cow<'i, str>
-	where
-		Self: 'a,
-	{
+	fn new_name(_context: &EntityContext<'i>, unit: &Self::Args) -> Cow<'i, str> {
 		unit.name().into()
 	}
 
-	fn new_domain<'a>(_context: &EntityContext<'i>, _unit: &Self::Args<'a>) -> &'static str
-	where
-		Self: 'a,
-	{
+	fn new_domain(_context: &EntityContext<'i>, _unit: &Self::Args) -> &'static str {
 		Self::DOMAIN
 	}
 
-	fn new<'a>(context: &EntityContext<'i>, topics: &EntityTopics, unit: Self::Args<'a>) -> Self
-	where
-		Self: 'a,
-	{
+	fn new(context: &EntityContext<'i>, topics: &EntityTopics, unit: Self::Args) -> Self {
 		let (device, availability) = context.to_parts();
 		let EntityIds {
 			unique_id,
@@ -156,47 +138,29 @@ pub struct UnitSensor<'i> {
 }
 
 impl<'i> ConfiguredEntity<'i> for UnitSensor<'i> {
-	type Args<'a> = &'i UnitConfig where Self: 'a;
+	type Args = &'i UnitConfig;
 
-	fn new_unique_id<'a>(context: &EntityContext<'i>, unit: &Self::Args<'a>) -> Cow<'i, str>
-	where
-		Self: 'a,
-	{
+	fn new_unique_id(context: &EntityContext<'i>, unit: &Self::Args) -> Cow<'i, str> {
 		UnitSwitch::new_unique_id(context, unit)
 	}
 
-	fn new_short_id<'a>(context: &EntityContext<'i>, unit: &Self::Args<'a>) -> Cow<'i, str>
-	where
-		Self: 'a,
-	{
+	fn new_short_id(context: &EntityContext<'i>, unit: &Self::Args) -> Cow<'i, str> {
 		UnitSwitch::new_short_id(context, unit)
 	}
 
-	fn new_object_id<'a>(context: &EntityContext<'i>, unit: &Self::Args<'a>) -> Cow<'i, str>
-	where
-		Self: 'a,
-	{
+	fn new_object_id(context: &EntityContext<'i>, unit: &Self::Args) -> Cow<'i, str> {
 		UnitSwitch::new_object_id(context, unit)
 	}
 
-	fn new_name<'a>(context: &EntityContext<'i>, unit: &Self::Args<'a>) -> Cow<'i, str>
-	where
-		Self: 'a,
-	{
+	fn new_name(context: &EntityContext<'i>, unit: &Self::Args) -> Cow<'i, str> {
 		UnitSwitch::new_name(context, unit)
 	}
 
-	fn new_domain<'a>(_context: &EntityContext<'i>, _unit: &Self::Args<'a>) -> &'static str
-	where
-		Self: 'a,
-	{
+	fn new_domain(_context: &EntityContext<'i>, _unit: &Self::Args) -> &'static str {
 		Self::DOMAIN
 	}
 
-	fn new<'a>(context: &EntityContext<'i>, topics: &EntityTopics, unit: Self::Args<'a>) -> Self
-	where
-		Self: 'a,
-	{
+	fn new(context: &EntityContext<'i>, topics: &EntityTopics, unit: Self::Args) -> Self {
 		let (device, availability) = context.to_parts();
 		let EntityIds {
 			unique_id,
@@ -283,58 +247,42 @@ impl<'i> EntityObject for ConfiguredUnit<'i> {
 }
 
 impl<'i> EntityDocument for ConfiguredUnit<'i> {
+	#[cfg(feature = "gat")]
 	type Document<'o> = &'o Self where Self: 'o;
 
+	#[cfg(feature = "gat")]
 	fn to_document<'o>(&'o self) -> Self::Document<'o> {
 		self
 	}
 }
 
 impl<'i> ConfiguredEntity<'i> for ConfiguredUnit<'i> {
-	type Args<'a> = &'i UnitConfig where Self: 'a;
+	type Args = &'i UnitConfig;
 
-	fn new_unique_id<'a>(context: &EntityContext<'i>, unit: &Self::Args<'a>) -> Cow<'i, str>
-	where
-		Self: 'a,
-	{
+	fn new_unique_id(context: &EntityContext<'i>, unit: &Self::Args) -> Cow<'i, str> {
 		UnitSwitch::new_unique_id(context, unit)
 	}
 
-	fn new_short_id<'a>(context: &EntityContext<'i>, unit: &Self::Args<'a>) -> Cow<'i, str>
-	where
-		Self: 'a,
-	{
+	fn new_short_id(context: &EntityContext<'i>, unit: &Self::Args) -> Cow<'i, str> {
 		UnitSwitch::new_short_id(context, unit)
 	}
 
-	fn new_object_id<'a>(context: &EntityContext<'i>, unit: &Self::Args<'a>) -> Cow<'i, str>
-	where
-		Self: 'a,
-	{
+	fn new_object_id(context: &EntityContext<'i>, unit: &Self::Args) -> Cow<'i, str> {
 		UnitSwitch::new_object_id(context, unit)
 	}
 
-	fn new_name<'a>(context: &EntityContext<'i>, unit: &Self::Args<'a>) -> Cow<'i, str>
-	where
-		Self: 'a,
-	{
+	fn new_name(context: &EntityContext<'i>, unit: &Self::Args) -> Cow<'i, str> {
 		UnitSwitch::new_name(context, unit)
 	}
 
-	fn new_domain<'a>(_context: &EntityContext<'i>, unit: &Self::Args<'a>) -> &'static str
-	where
-		Self: 'a,
-	{
+	fn new_domain(_context: &EntityContext<'i>, unit: &Self::Args) -> &'static str {
 		match unit.read_only {
 			true => UnitSensor::DOMAIN,
 			false => UnitSwitch::DOMAIN,
 		}
 	}
 
-	fn new<'a>(context: &EntityContext<'i>, topics: &EntityTopics, unit: Self::Args<'a>) -> Self
-	where
-		Self: 'a,
-	{
+	fn new(context: &EntityContext<'i>, topics: &EntityTopics, unit: Self::Args) -> Self {
 		match Self::new_domain(&context, &unit) {
 			UnitSwitch::DOMAIN => Self::Switch(UnitSwitch::new(context, topics, unit)),
 			UnitSensor::DOMAIN => Self::Sensor(UnitSensor::new(context, topics, unit)),

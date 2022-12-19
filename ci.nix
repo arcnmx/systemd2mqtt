@@ -12,7 +12,7 @@ in {
       arc.enable = true;
     };
     channels = {
-      nixpkgs = "23.05";
+      nixpkgs = "22.11";
     };
     tasks = {
       build.inputs = singleton systemd2mqtt;

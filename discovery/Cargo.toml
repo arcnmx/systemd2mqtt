@@ -9,5 +9,5 @@ systemd2mqtt-payload = { version = "0.1", path = "../payload" }
 error-stack = "0.2"
 futures = { version = "0.3", features = ["thread-pool"] }
 serde = { version = "1", features = ["derive"] }
-hass-mqtt-types = { version = "0", git = "https://github.com/YoloDev/hass-rs" }
+hass-mqtt-types = { version = "0", default-features = false, git = "https://github.com/YoloDev/hass-rs" }
 hass-mqtt-client = { version = "0", default-features = false, git = "https://github.com/YoloDev/hass-rs" }

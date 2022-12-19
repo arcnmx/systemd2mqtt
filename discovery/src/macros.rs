@@ -19,8 +19,10 @@ macro_rules! impl_entity {
 		}
 
 		impl<'i> EntityDocument for hass_mqtt_types::$ty<'i> {
+			#[cfg(feature = "gat")]
 			type Document<'o> = &'o Self where Self: 'o;
 
+			#[cfg(feature = "gat")]
 			fn to_document<'o>(&'o self) -> Self::Document<'o> {
 				self
 			}
@@ -46,8 +48,10 @@ macro_rules! impl_entity {
 		}
 
 		impl<'i> EntityDocument for $ty<'i> {
+			#[cfg(feature = "gat")]
 			type Document<'o> = hass_mqtt_types::$doc<'o> where Self: 'o;
 
+			#[cfg(feature = "gat")]
 			fn to_document<'o>(&'o self) -> Self::Document<'o> {
 				self.$as()
 			}
@@ -55,7 +59,12 @@ macro_rules! impl_entity {
 
 		impl Serialize for $ty<'_> {
 			fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-				self.to_document().serialize(s)
+				match () {
+					#[cfg(feature = "gat")]
+					() => self.to_document().serialize(s),
+					#[cfg(not(feature = "gat"))]
+					() => self.$as().serialize(s),
+				}
 			}
 		}
 	)* };

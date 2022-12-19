@@ -813,7 +813,6 @@ dependencies = [
  "serde",
  "serde_repr",
  "thiserror",
- "tracing-error",
 ]
 
 [[package]]

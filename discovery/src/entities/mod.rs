@@ -32,49 +32,32 @@ pub trait EntityObject: Serialize {
 }
 
 pub trait EntityDocument: EntityObject {
+	#[cfg(feature = "gat")]
 	type Document<'o>: Serialize + Sized
 	where
 		Self: 'o;
 
+	#[cfg(feature = "gat")]
 	fn to_document<'o>(&'o self) -> Self::Document<'o>;
 }
 
 pub trait ConfiguredEntity<'i>: EntityDocument + Sized {
-	type Args<'a>: Clone
-	where
-		Self: 'a;
+	type Args;
 
-	fn new_unique_id<'a>(context: &EntityContext<'i>, args: &Self::Args<'a>) -> Cow<'i, str>
-	where
-		Self: 'a;
-	fn new_short_id<'a>(context: &EntityContext<'i>, args: &Self::Args<'a>) -> Cow<'i, str>
-	where
-		Self: 'a;
-	fn new_name<'a>(context: &EntityContext<'i>, args: &Self::Args<'a>) -> Cow<'i, str>
-	where
-		Self: 'a;
-	fn new_domain<'a>(context: &EntityContext<'i>, args: &Self::Args<'a>) -> &'static str
-	where
-		Self: 'a;
+	fn new_unique_id(context: &EntityContext<'i>, args: &Self::Args) -> Cow<'i, str>;
+	fn new_short_id(context: &EntityContext<'i>, args: &Self::Args) -> Cow<'i, str>;
+	fn new_name(context: &EntityContext<'i>, args: &Self::Args) -> Cow<'i, str>;
+	fn new_domain(context: &EntityContext<'i>, args: &Self::Args) -> &'static str;
 
-	fn format_object_id<'a>(context: &EntityContext<'i>, short_id: &str) -> Cow<'i, str>
-	where
-		Self: 'a,
-	{
+	fn format_object_id(context: &EntityContext<'i>, short_id: &str) -> Cow<'i, str> {
 		format!("{}_{short_id}", context.hostname()).into()
 	}
 
-	fn new_object_id<'a>(context: &EntityContext<'i>, args: &Self::Args<'a>) -> Cow<'i, str>
-	where
-		Self: 'a,
-	{
+	fn new_object_id(context: &EntityContext<'i>, args: &Self::Args) -> Cow<'i, str> {
 		Self::format_object_id(context, &Self::new_short_id(context, args)).into()
 	}
 
-	fn new_ids<'a>(context: &EntityContext<'i>, args: &Self::Args<'a>) -> EntityIds<'i>
-	where
-		Self: 'a,
-	{
+	fn new_ids(context: &EntityContext<'i>, args: &Self::Args) -> EntityIds<'i> {
 		EntityIds {
 			unique_id: Self::new_unique_id(context, args),
 			object_id: Self::new_object_id(context, args),
@@ -82,18 +65,13 @@ pub trait ConfiguredEntity<'i>: EntityDocument + Sized {
 		}
 	}
 
-	fn new<'a>(context: &EntityContext<'i>, topics: &EntityTopics, args: Self::Args<'a>) -> Self
-	where
-		Self: 'a;
+	fn new(context: &EntityContext<'i>, topics: &EntityTopics, args: Self::Args) -> Self;
 
 	fn entity_topic<'a>(
 		client: &'a HassMqttClient,
 		context: &EntityContext<'i>,
-		args: &Self::Args<'a>,
-	) -> Pin<Box<dyn Future<Output = crate::Result<EntityTopic>> + 'a>>
-	where
-		Self: 'a,
-	{
+		args: &Self::Args,
+	) -> Pin<Box<dyn Future<Output = crate::Result<EntityTopic>> + 'a>> {
 		client
 			.entity(
 				MqttTopic::from(Self::new_domain(context, args)),

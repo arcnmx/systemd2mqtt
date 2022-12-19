@@ -35,6 +35,5 @@ in {
 
   meta = {
     platforms = platforms.unix;
-    broken = versionOlder rustPlatform.rust.rustc.version "1.65";
   };
 }

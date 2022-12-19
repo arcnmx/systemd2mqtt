@@ -35,40 +35,25 @@ impl<'i> DiagButton<'i> {
 }
 
 impl<'i> ConfiguredEntity<'i> for DiagButton<'i> {
-	type Args<'a> = () where Self: 'a;
+	type Args = ();
 
-	fn new_unique_id<'a>(context: &EntityContext<'i>, _args: &Self::Args<'a>) -> Cow<'i, str>
-	where
-		Self: 'a,
-	{
+	fn new_unique_id(context: &EntityContext<'i>, _args: &Self::Args) -> Cow<'i, str> {
 		format!("{}_diag_reset", ConfiguredDevice::device_id(context.hostname())).into()
 	}
 
-	fn new_short_id<'a>(_context: &EntityContext<'i>, _args: &Self::Args<'a>) -> Cow<'i, str>
-	where
-		Self: 'a,
-	{
+	fn new_short_id(_context: &EntityContext<'i>, _args: &Self::Args) -> Cow<'i, str> {
 		"diag_reset".into()
 	}
 
-	fn new_name<'a>(_context: &EntityContext<'i>, _args: &Self::Args<'a>) -> Cow<'i, str>
-	where
-		Self: 'a,
-	{
+	fn new_name(_context: &EntityContext<'i>, _args: &Self::Args) -> Cow<'i, str> {
 		format!("{} reset", PKG_NAME).into()
 	}
 
-	fn new_domain<'a>(_context: &EntityContext<'i>, _args: &Self::Args<'a>) -> &'static str
-	where
-		Self: 'a,
-	{
+	fn new_domain(_context: &EntityContext<'i>, _args: &Self::Args) -> &'static str {
 		Self::DOMAIN
 	}
 
-	fn new<'a>(context: &EntityContext<'i>, topics: &EntityTopics, args: Self::Args<'a>) -> Self
-	where
-		Self: 'a,
-	{
+	fn new(context: &EntityContext<'i>, topics: &EntityTopics, args: Self::Args) -> Self {
 		let (device, availability) = context.to_parts();
 		let EntityIds {
 			unique_id,
