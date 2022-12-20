@@ -1,10 +1,10 @@
 macro_rules! impl_entity {
 	(@document $($ty:ident = $domain:literal,)*) => { $(
-		impl StaticEntity for hass_mqtt_types::$ty<'_> {
+		impl StaticEntity for hass_mqtt_proto::$ty<'_> {
 			const DOMAIN: &'static str = $domain;
 		}
 
-		impl<'i> EntityObject for hass_mqtt_types::$ty<'i> {
+		impl<'i> EntityObject for hass_mqtt_proto::$ty<'i> {
 			fn unique_id(&self) -> Option<UniqueId> {
 				self.unique_id.as_ref().map(|s| s[..].into())
 			}
@@ -18,7 +18,7 @@ macro_rules! impl_entity {
 			}
 		}
 
-		impl<'i> EntityDocument for hass_mqtt_types::$ty<'i> {
+		impl<'i> EntityDocument for hass_mqtt_proto::$ty<'i> {
 			#[cfg(feature = "gat")]
 			type Document<'o> = &'o Self where Self: 'o;
 
@@ -30,7 +30,7 @@ macro_rules! impl_entity {
 	)* };
 	(@wrapper $($ty:ident[$as:ident] = $doc:ident,)*) => { $(
 		impl StaticEntity for $ty<'_> {
-			const DOMAIN: &'static str = hass_mqtt_types::$doc::DOMAIN;
+			const DOMAIN: &'static str = hass_mqtt_proto::$doc::DOMAIN;
 		}
 
 		impl<'i> EntityObject for $ty<'i> {
@@ -49,7 +49,7 @@ macro_rules! impl_entity {
 
 		impl<'i> EntityDocument for $ty<'i> {
 			#[cfg(feature = "gat")]
-			type Document<'o> = hass_mqtt_types::$doc<'o> where Self: 'o;
+			type Document<'o> = hass_mqtt_proto::$doc<'o> where Self: 'o;
 
 			#[cfg(feature = "gat")]
 			fn to_document<'o>(&'o self) -> Self::Document<'o> {

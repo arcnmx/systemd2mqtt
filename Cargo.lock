@@ -730,7 +730,7 @@ checksum = "dec7af912d60cdbd3677c1af9352ebae6fb8394d165568a2234df0fa00f87793"
 [[package]]
 name = "hass-dyn-error"
 version = "0.0.0"
-source = "git+https://github.com/YoloDev/hass-rs#e84fe7fce6cc462c3547f351c51e0f0cf8a034e0"
+source = "git+https://github.com/YoloDev/hass-rs#b1c3d66ed936fe687799e23f8445d3407adcb342"
 dependencies = [
  "hass-provide-any-probe",
 ]
@@ -738,7 +738,7 @@ dependencies = [
 [[package]]
 name = "hass-mqtt-client"
 version = "0.0.0"
-source = "git+https://github.com/YoloDev/hass-rs#e84fe7fce6cc462c3547f351c51e0f0cf8a034e0"
+source = "git+https://github.com/YoloDev/hass-rs#b1c3d66ed936fe687799e23f8445d3407adcb342"
 dependencies = [
  "async-trait",
  "bytes",
@@ -748,9 +748,9 @@ dependencies = [
  "futures",
  "generational-arena",
  "hass-dyn-error",
+ "hass-mqtt-proto",
  "hass-mqtt-provider",
  "hass-mqtt-provider-paho",
- "hass-mqtt-types",
  "hass-provide-any-probe",
  "pin-project",
  "serde",
@@ -766,7 +766,7 @@ dependencies = [
 [[package]]
 name = "hass-mqtt-macros"
 version = "0.0.0"
-source = "git+https://github.com/YoloDev/hass-rs#e84fe7fce6cc462c3547f351c51e0f0cf8a034e0"
+source = "git+https://github.com/YoloDev/hass-rs#b1c3d66ed936fe687799e23f8445d3407adcb342"
 dependencies = [
  "convert_case",
  "darling",
@@ -777,33 +777,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "hass-mqtt-provider"
+name = "hass-mqtt-proto"
 version = "0.0.0"
-source = "git+https://github.com/YoloDev/hass-rs#e84fe7fce6cc462c3547f351c51e0f0cf8a034e0"
-dependencies = [
- "async-trait",
- "futures",
-]
-
-[[package]]
-name = "hass-mqtt-provider-paho"
-version = "0.0.0"
-source = "git+https://github.com/YoloDev/hass-rs#e84fe7fce6cc462c3547f351c51e0f0cf8a034e0"
-dependencies = [
- "async-trait",
- "futures",
- "hass-dyn-error",
- "hass-mqtt-provider",
- "paho-mqtt",
- "pin-project",
- "thiserror",
- "tokio",
-]
-
-[[package]]
-name = "hass-mqtt-types"
-version = "0.0.0"
-source = "git+https://github.com/YoloDev/hass-rs#e84fe7fce6cc462c3547f351c51e0f0cf8a034e0"
+source = "git+https://github.com/YoloDev/hass-rs#b1c3d66ed936fe687799e23f8445d3407adcb342"
 dependencies = [
  "enumset",
  "hass-mqtt-macros",
@@ -816,9 +792,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "hass-mqtt-provider"
+version = "0.0.0"
+source = "git+https://github.com/YoloDev/hass-rs#b1c3d66ed936fe687799e23f8445d3407adcb342"
+dependencies = [
+ "async-trait",
+ "futures",
+]
+
+[[package]]
+name = "hass-mqtt-provider-paho"
+version = "0.0.0"
+source = "git+https://github.com/YoloDev/hass-rs#b1c3d66ed936fe687799e23f8445d3407adcb342"
+dependencies = [
+ "async-trait",
+ "futures",
+ "hass-dyn-error",
+ "hass-mqtt-provider",
+ "paho-mqtt",
+ "pin-project",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "hass-provide-any-probe"
 version = "0.0.0"
-source = "git+https://github.com/YoloDev/hass-rs#e84fe7fce6cc462c3547f351c51e0f0cf8a034e0"
+source = "git+https://github.com/YoloDev/hass-rs#b1c3d66ed936fe687799e23f8445d3407adcb342"
 
 [[package]]
 name = "heck"
@@ -1609,7 +1609,7 @@ dependencies = [
  "error-stack",
  "futures",
  "hass-mqtt-client",
- "hass-mqtt-types",
+ "hass-mqtt-proto",
  "log",
  "once_cell",
  "serde",
@@ -1629,7 +1629,7 @@ dependencies = [
  "error-stack",
  "futures",
  "hass-mqtt-client",
- "hass-mqtt-types",
+ "hass-mqtt-proto",
  "serde",
  "systemd2mqtt-payload",
 ]
@@ -1639,7 +1639,7 @@ name = "systemd2mqtt-payload"
 version = "0.1.0"
 dependencies = [
  "error-stack",
- "hass-mqtt-types",
+ "hass-mqtt-proto",
  "once_cell",
  "serde",
  "serde_json",

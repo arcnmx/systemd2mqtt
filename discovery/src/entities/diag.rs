@@ -3,7 +3,7 @@ use {
 		entities::{ConfiguredDevice, ConfiguredEntity, EntityContext, EntityIds, StaticEntity as _},
 		EntityTopics, MqttTopic,
 	},
-	hass_mqtt_types::{Availability, Button, EntityCategory},
+	hass_mqtt_proto::{Availability, Button, EntityCategory},
 	std::{borrow::Cow, slice},
 	systemd2mqtt_payload::{SerializeExt as _, ServiceCommand, PKG_NAME},
 };

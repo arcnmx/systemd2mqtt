@@ -7,7 +7,7 @@ use {
 	error_stack::{FutureExt as _, IntoReport as _},
 	futures::FutureExt as _,
 	hass_mqtt_client::{EntityTopic, HassMqttClient},
-	hass_mqtt_types::{Availability, Device, UniqueId},
+	hass_mqtt_proto::{Availability, Device, UniqueId},
 	serde::{Serialize, Serializer},
 	std::{
 		borrow::Cow,

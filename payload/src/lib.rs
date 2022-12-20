@@ -1,7 +1,7 @@
 pub use self::payload::*;
 use {
 	error_stack::{IntoReport as _, ResultExt as _},
-	hass_mqtt_types::{DeviceClass, EntityCategory},
+	hass_mqtt_proto::{DeviceClass, EntityCategory},
 	once_cell::sync::Lazy,
 	serde::{Deserialize, Serialize},
 	std::{result::Result as StdResult, str::FromStr, sync::Arc},

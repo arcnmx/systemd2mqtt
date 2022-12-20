@@ -12,4 +12,4 @@ serde_urlencoded = "0.7"
 url = "2"
 once_cell = "1"
 serde = { version = "1", features = ["derive"] }
-hass-mqtt-types = { version = "0", default-features = false, git = "https://github.com/YoloDev/hass-rs" }
+hass-mqtt-proto = { version = "0", default-features = false, git = "https://github.com/YoloDev/hass-rs" }

@@ -5,7 +5,7 @@ use {
 		},
 		EntityTopics, MqttTopic,
 	},
-	hass_mqtt_types::{Availability, BinarySensor, DeviceClass, EntityCategory, Switch, UniqueId},
+	hass_mqtt_proto::{Availability, BinarySensor, DeviceClass, EntityCategory, Switch, UniqueId},
 	serde::{Serialize, Serializer},
 	std::{borrow::Cow, slice},
 	systemd2mqtt_payload::{SerializeExt as _, UnitCommand, UnitConfig, OFF, ON},
