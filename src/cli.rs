@@ -145,7 +145,8 @@ impl UnitConfig {
 	}
 
 	pub fn unique_id(&self, cli: &Args) -> String {
-		format!("{}_{}", cli.hass_device_id(), self.unit.replace(".", "_"))
+		let unit = self.unit.replace(".", "_").replace("@", "_");
+		format!("{}_{}", cli.hass_device_id(), unit)
 	}
 
 	pub fn default_object_id(&self, cli: &Args) -> String {
