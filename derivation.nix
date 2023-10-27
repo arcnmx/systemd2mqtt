@@ -2,7 +2,6 @@ let
   self = import ./. { pkgs = null; system = null; };
 in {
   rustPlatform
-, nix-gitignore
 , buildType ? "release"
 , openssl, pkg-config
 , paho-mqtt-c
@@ -28,5 +27,6 @@ in {
 
   meta = {
     platforms = platforms.unix;
+    mainProgram = "systemd2mqtt";
   };
 }
