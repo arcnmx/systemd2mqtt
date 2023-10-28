@@ -10,7 +10,6 @@
   };
   outputs = { flakelib, self, nixpkgs, rust, ... }@inputs: let
     nixlib = nixpkgs.lib;
-    impure = builtins ? currentSystem;
     inherit (nixlib)
       filter optional
       hasSuffix
@@ -81,7 +80,7 @@
       systemd2mqtt = Outputs.WrapOverlay ./overlay.nix;
       default = self.overlays.systemd2mqtt;
     };
-    legacyPackages = { callPackageSet }: callPackageSet {
+    legacyPackages = {
       source = { rust'builders }: rust'builders.wrapSource self.lib.crate.src;
 
       generate = { rust'builders, outputHashes }: rust'builders.generateFiles {
@@ -92,7 +91,7 @@
       outputHashes = { rust'builders }: rust'builders.cargoOutputHashes {
         inherit (self.lib) crate;
       };
-    } { };
+    };
     lib = {
       crate = rust.lib.importCargo {
         path = ./Cargo.toml;
