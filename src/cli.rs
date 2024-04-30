@@ -54,8 +54,8 @@ pub struct UnitConfig {
 	pub invert_state: bool,
 	#[serde(alias = "enabled", default = "default_true")]
 	pub enabled_by_default: bool,
-	#[serde(default = "default_entity_category")]
-	pub entity_category: EntityCategory,
+	#[serde(default)]
+	pub entity_category: Option<EntityCategory>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub icon: Option<String>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
@@ -176,6 +176,14 @@ impl UnitConfig {
 			"switch"
 		}
 	}
+
+	pub fn entity_category(&self) -> EntityCategory {
+		self.entity_category.unwrap_or(if self.read_only {
+			EntityCategory::Diagnostic
+		} else {
+			EntityCategory::Config
+		})
+	}
 }
 
 #[derive(Debug)]
@@ -272,17 +280,13 @@ impl Default for UnitConfig {
 			read_only: Default::default(),
 			invert_state: Default::default(),
 			enabled_by_default: true,
-			entity_category: default_entity_category(),
+			entity_category: Default::default(),
 		}
 	}
 }
 
 fn default_true() -> bool {
 	true
-}
-
-fn default_entity_category() -> EntityCategory {
-	EntityCategory::Config
 }
 
 fn opt_str(s: &str) -> Option<&str> {
